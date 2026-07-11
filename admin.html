@@ -220,6 +220,11 @@
         <div class="card-label">未返信の相談</div>
         <div class="big-pt" style="color:var(--ink); font-size:26px;" id="unreadCount">-<small> 件</small></div>
       </div>
+      <div class="card">
+        <div class="card-label" style="color:var(--rose); font-weight:700; margin-bottom:6px;">プッシュ通知</div>
+        <div style="font-size:12px; color:var(--muted); line-height:1.8;" id="pushStatusText">確認中…</div>
+        <button class="btn" id="pushBtn" style="display:none; background:var(--rose); color:#fff; width:100%; margin-top:10px;" onclick="enablePush()">通知をオンにする</button>
+      </div>
       <div class="notice-card" id="nextLoginCard" style="display:none;">
         次回ログイン予定を公開中：<b id="nextLoginHome"></b>
         <div style="font-size:11px; color:var(--muted); margin-top:4px;">お客様のページに表示されています</div>
@@ -312,6 +317,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-functions-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
 <script src="config.js"></script>
 <script>
 firebase.initializeApp(CUPIDS.firebase);
@@ -368,6 +374,7 @@ auth.onAuthStateChanged(async (user) => {
   subscribeTeller();
   subscribeConversations();
   loadTodayStats();
+  updatePushStatus();
 });
 
 async function doLogin() {
@@ -703,6 +710,66 @@ setInterval(() => { if (currentConv) renderChatState(); }, 2000);
 // ===== PWA =====
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+
+// ===== プッシュ通知（FCM） =====
+function pushSupported() {
+  return 'Notification' in window && 'serviceWorker' in navigator &&
+    firebase.messaging && firebase.messaging.isSupported && firebase.messaging.isSupported();
+}
+
+function updatePushStatus() {
+  const el = $('pushStatusText');
+  const btn = $('pushBtn');
+  if (!pushSupported()) {
+    el.textContent = 'この開き方では通知を使えません。ホーム画面に追加したアプリから開くと設定できます（iPhoneはiOS 16.4以上）。';
+    btn.style.display = 'none';
+    return;
+  }
+  if (Notification.permission === 'granted' && localStorage.getItem('mojiPushOn') === '1') {
+    el.textContent = '通知オン：新しいメッセージが届くとこの端末に通知されます。';
+    btn.style.display = 'none';
+  } else if (Notification.permission === 'denied') {
+    el.textContent = '通知がブロックされています。端末の設定でこのアプリの通知を許可してから開き直してください。';
+    btn.style.display = 'none';
+  } else {
+    el.textContent = '通知をオンにすると、お客様からの新着メッセージがこの端末に届きます。';
+    btn.style.display = 'block';
+  }
+}
+
+async function enablePush() {
+  if (!CUPIDS.vapidKey) { toast('通知キーの設定待ちです（もう少しお待ちください）'); return; }
+  try {
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') { updatePushStatus(); return; }
+    const reg = await navigator.serviceWorker.ready;
+    const token = await firebase.messaging().getToken({
+      vapidKey: CUPIDS.vapidKey,
+      serviceWorkerRegistration: reg
+    });
+    if (!token) throw new Error('トークンを取得できませんでした');
+    await db.collection('mojiPushTokens').doc(token).set({
+      uid: tellerId,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      ua: navigator.userAgent.slice(0, 120)
+    });
+    localStorage.setItem('mojiPushOn', '1');
+    toast('通知をオンにしました');
+  } catch (e) {
+    console.error('通知設定エラー:', e);
+    toast('通知の設定に失敗しました');
+  }
+  updatePushStatus();
+}
+
+// アプリを開いている間の受信はトーストで知らせる（通知バナーは出ない仕様）
+if (pushSupported()) {
+  firebase.messaging().onMessage((payload) => {
+    const d = payload.data || {};
+    toast(d.body || '新しいメッセージが届きました');
+    loadTodayStats();
+  });
 }
 </script>
 </body>
