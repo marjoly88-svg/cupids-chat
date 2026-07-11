@@ -11,7 +11,9 @@ const CUPIDS = {
     appId: "1:44532110483:web:d6266e8abba8582b8b6966"
   },
   region: "asia-northeast1", // mojiSendMessage のデプロイ先リージョン
-  rate: 5, // pt / 文字
+  // 1文字6pt。既存の100文字チャット(お客さん100字+返信100字=800円=実質4円/字)より
+  // 常に5割高いプレミアム設定。「既存サイトのほうがお得」が崩れないこと
+  rate: 6, // pt / 文字
 
   // みなみさん（fortuneTellers のドキュメントID = 本人のuid）
   teller: {
