@@ -138,12 +138,21 @@
   /* 入力エリア（Stella型: 無料スイッチ＋定型文チップ常時表示＋大きめ入力欄） */
   .composer { padding: 6px 10px calc(8px + env(safe-area-inset-bottom)); flex-shrink: 0; }
   .composer-top { display: flex; align-items: center; gap: 8px; padding: 0 2px 6px; }
-  .free-switch { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--muted); flex-shrink: 0; }
-  .free-switch.on { color: var(--free); }
-  .switch.mini { width: 40px; height: 22px; }
-  .switch.mini .knob { width: 16px; height: 16px; top: 3px; left: 3px; }
-  .switch.mini.on { background: var(--free); }
-  .switch.mini.on .knob { left: 21px; }
+  /* Stella型モードスイッチ: スイッチ自体に現在のモード（有料/無料）を表示 */
+  .mode-switch {
+    display: flex; align-items: center; gap: 7px; height: 30px; border-radius: 999px;
+    padding: 3px; font-size: 12px; font-weight: 700; flex-shrink: 0; transition: background .15s;
+  }
+  .mode-switch .ms-knob {
+    width: 24px; height: 24px; border-radius: 50%; background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .2); flex-shrink: 0;
+  }
+  .mode-switch.paid { background: var(--gold); color: #fff; padding-left: 13px; }
+  .mode-switch.free {
+    background: var(--white); color: var(--muted); border: 1.5px solid #D8D2CC;
+    flex-direction: row-reverse; padding-right: 13px;
+  }
+  .mode-switch.free .ms-knob { background: #E4DFDA; box-shadow: none; }
   .tpl-inline { display: flex; gap: 6px; overflow-x: auto; flex: 1; min-width: 0; scrollbar-width: none; }
   .tpl-inline::-webkit-scrollbar { display: none; }
   .tpl-inline button {
@@ -157,9 +166,7 @@
   .composer-info.free { color: var(--free); font-weight: 400; }
   .composer-info.over { color: var(--danger); }
   .composer-box textarea { width: 100%; border: none; resize: none; font-size: 14px; line-height: 1.7; max-height: 140px; padding: 4px 2px; background: transparent; }
-  .composer-actions { display: flex; align-items: center; gap: 10px; border-top: 1px solid var(--line); padding-top: 6px; }
-  .enter-send { margin-left: auto; display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--muted); }
-  .enter-send input { accent-color: var(--rose); }
+  .composer-actions { display: flex; align-items: center; justify-content: flex-end; border-top: 1px solid var(--line); padding-top: 6px; }
   .btn-send-text {
     background: var(--rose); color: #fff; font-size: 14px; font-weight: 700;
     padding: 8px 24px; border-radius: 10px; flex-shrink: 0;
@@ -275,9 +282,8 @@
       <div id="msgList"></div>
       <div class="composer">
         <div class="composer-top">
-          <button class="free-switch" id="freeSwitch" onclick="togglePaid()" aria-label="無料メッセージに切り替え">
-            <span class="switch mini" id="freeKnob"><span class="knob"></span></span>
-            <span>無料</span>
+          <button class="mode-switch paid" id="modeSwitch" onclick="togglePaid()" aria-label="有料と無料を切り替え">
+            <span id="modeLabel">有料</span><span class="ms-knob"></span>
           </button>
           <div class="tpl-inline" id="tplRow"></div>
         </div>
@@ -285,7 +291,6 @@
           <div class="composer-info" id="composerInfo"></div>
           <textarea id="msgInput" rows="2" placeholder="鑑定メッセージを入力…（1文字6pt）"></textarea>
           <div class="composer-actions">
-            <label class="enter-send"><input type="checkbox" id="enterSendChk"> Enterで送信</label>
             <button class="btn-send-text" id="sendBtn" disabled>送信</button>
           </div>
         </div>
@@ -667,8 +672,8 @@ function togglePaid() {
 }
 
 function renderModeUI() {
-  $('freeKnob').classList.toggle('on', !paidMode);
-  $('freeSwitch').classList.toggle('on', !paidMode);
+  $('modeSwitch').className = 'mode-switch ' + (paidMode ? 'paid' : 'free');
+  $('modeLabel').textContent = paidMode ? '有料' : '無料';
   $('msgInput').placeholder = paidMode
     ? `鑑定メッセージを入力…（1文字${RATE}pt）`
     : '無料メッセージを入力してください';
@@ -693,14 +698,9 @@ input.addEventListener('input', () => {
   updateComposer();
 });
 
-// Enterで送信（チェックON: Enter送信・Shift+Enterで改行 / OFF: Shift+Enter送信・Enterで改行）
-const enterChk = $('enterSendChk');
-enterChk.checked = localStorage.getItem('mojiEnterSend') === '1';
-enterChk.addEventListener('change', () => localStorage.setItem('mojiEnterSend', enterChk.checked ? '1' : '0'));
+// Shift+Enterで送信（Enter単体は改行。誤送信防止のためEnter送信モードは設けない）
 input.addEventListener('keydown', (e) => {
-  if (e.key !== 'Enter') return;
-  const shouldSend = enterChk.checked ? !e.shiftKey : e.shiftKey;
-  if (shouldSend) { e.preventDefault(); sendMessage(); }
+  if (e.key === 'Enter' && e.shiftKey) { e.preventDefault(); sendMessage(); }
 });
 
 function updateComposer() {
