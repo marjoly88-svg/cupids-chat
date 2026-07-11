@@ -180,6 +180,27 @@
     background: rgba(58, 36, 48, .92); color: #fff; font-size: 13px;
     padding: 10px 18px; border-radius: 999px; z-index: 200; display: none; max-width: 90%;
   }
+
+  /* ===== メモモーダル ===== */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(58, 46, 51, .5);
+    z-index: 100; align-items: flex-end; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--white); border-radius: 22px 22px 0 0; width: 100%; max-width: 480px;
+    padding: 20px 18px calc(22px + env(safe-area-inset-bottom));
+  }
+  .modal h2 { font-size: 15px; color: var(--rose); margin-bottom: 8px; }
+  .modal textarea {
+    width: 100%; min-height: 180px; font-size: 14px; line-height: 1.7;
+    padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); resize: vertical;
+  }
+  .modal-close { display: block; text-align: center; width: 100%; color: var(--muted); font-size: 13px; margin-top: 10px; }
+  .memo-btn {
+    border: 1px solid var(--rose); color: var(--rose); font-size: 12px; font-weight: 700;
+    padding: 4px 10px; border-radius: 999px; flex-shrink: 0;
+  }
   .logout-link { text-align: center; font-size: 12px; color: var(--muted); padding: 10px; text-decoration: underline; }
 </style>
 </head>
@@ -242,6 +263,7 @@
       <div class="chat-header">
         <button class="back" onclick="closeChat()">←</button>
         <b id="chatClientName"></b>
+        <button class="memo-btn" onclick="openMemo()">メモ</button>
         <div class="client-balance" id="chatClientBalance"></div>
       </div>
       <div class="ended-note" id="chatEndedNote" style="display:none;">お客様が相談を終了しています（有料メッセージは送れません）</div>
@@ -309,6 +331,19 @@
       <span>待機</span>
     </button>
   </nav>
+</div>
+
+<!-- お客様メモ（電話・チャット・文字数の3サイト共通。お客様には表示されない） -->
+<div class="modal-overlay" id="memoModal">
+  <div class="modal">
+    <h2 id="memoTitle">お客様メモ</h2>
+    <div style="font-size:11px; color:var(--muted); margin-bottom:8px;">
+      電話・チャットサイトと共通のメモです。お客様には表示されません（自分だけが見られます）。
+    </div>
+    <textarea id="memoField" placeholder="鑑定メモ・気づきなど…"></textarea>
+    <button class="btn" id="memoSaveBtn" style="background:var(--rose); color:#fff; width:100%; margin-top:12px;" onclick="saveMemo()">保存</button>
+    <button class="modal-close" onclick="closeMemo()">閉じる</button>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -706,6 +741,50 @@ async function sendMessage() {
 
 // 会話リストの更新で開いている会話の状態も追従させる
 setInterval(() => { if (currentConv) renderChatState(); }, 2000);
+
+// ===== お客様メモ（電話サイトと共通形式: memos/{占い師uid}_{お客さんuid}・本文content） =====
+function memoDocId() { return `${tellerId}_${currentConv.data.clientId}`; }
+
+async function openMemo() {
+  if (!currentConv) return;
+  $('memoTitle').textContent = `${currentConv.data.clientName || 'お客様'} さまのメモ`;
+  $('memoField').value = '読み込み中…';
+  $('memoModal').classList.add('open');
+  try {
+    const doc = await db.collection('memos').doc(memoDocId()).get();
+    $('memoField').value = (doc.exists && doc.data().content) || '';
+  } catch (e) {
+    console.error('メモ読み込みエラー:', e);
+    $('memoField').value = '';
+    toast('メモの読み込みに失敗しました');
+  }
+}
+
+function closeMemo() { $('memoModal').classList.remove('open'); }
+document.getElementById('memoModal').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('memoModal')) closeMemo();
+});
+
+async function saveMemo() {
+  if (!currentConv) return;
+  const btn = $('memoSaveBtn');
+  btn.disabled = true;
+  try {
+    await db.collection('memos').doc(memoDocId()).set({
+      fortuneTellerId: tellerId,
+      clientId: currentConv.data.clientId,
+      clientName: currentConv.data.clientName || '',
+      content: $('memoField').value,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+    toast('メモを保存しました');
+    closeMemo();
+  } catch (e) {
+    console.error('メモ保存エラー:', e);
+    toast('メモの保存に失敗しました');
+  }
+  btn.disabled = false;
+}
 
 // ===== PWA =====
 if ('serviceWorker' in navigator) {
