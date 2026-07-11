@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>キューピッズ 管理</title>
+<meta name="description" content="キューピッズ 占い師向け管理アプリ">
+<link rel="icon" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#B4456A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700&family=Shippori+Mincho:wght@600&display=swap');
+
+  :root {
+    --rose: #B4456A;
+    --rose-dark: #8E3354;
+    --bg: #F7F5F2;
+    --ink: #3A2E33;
+    --muted: #9A8890;
+    --gold: #B8923E;
+    --gold-bg: #FAF3E3;
+    --free: #4E9B8F;
+    --free-bg: #EAF5F3;
+    --white: #FFFFFF;
+    --line: #EFD9E2;
+    --danger: #C0392B;
+    --dark: #3A2430;
+    --green: #3BB273;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Zen Maru Gothic', sans-serif;
+    background: var(--bg); color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+  }
+  button { font-family: inherit; border: none; cursor: pointer; background: none; }
+  textarea, input { font-family: inherit; }
+  textarea:focus, input:focus { outline: none; }
+  .brand { font-family: 'Shippori Mincho', serif; color: var(--rose); }
+
+  #app { display: flex; flex-direction: column; height: 100dvh; }
+
+  header {
+    background: var(--white); border-bottom: 1px solid var(--line);
+    padding: 10px 16px; display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+  }
+  .header-badge { background: var(--dark); color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 999px; }
+  .header-status { margin-left: auto; font-size: 12px; display: flex; align-items: center; gap: 5px; color: var(--muted); }
+  .header-status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .header-status.on { color: var(--green); }
+  .header-status.on .dot { background: var(--green); }
+
+  main { flex: 1; min-height: 0; overflow-y: auto; }
+
+  nav {
+    background: var(--white); border-top: 1px solid var(--line);
+    display: flex; flex-shrink: 0; padding-bottom: env(safe-area-inset-bottom);
+  }
+  nav button { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 0 6px; color: var(--muted); }
+  nav button.active { color: var(--rose); }
+  nav button span { font-size: 11px; font-weight: 700; }
+
+  /* ===== ログイン ===== */
+  #loginView { max-width: 400px; margin: 0 auto; padding: 60px 24px; }
+  #loginView h1 { text-align: center; font-size: 24px; }
+  #loginView .sub { text-align: center; font-size: 13px; color: var(--muted); margin-top: 6px; }
+  #loginView label { display: block; font-size: 12px; color: var(--muted); margin: 16px 0 4px; }
+  #loginView input {
+    width: 100%; padding: 13px; font-size: 15px;
+    border: 1px solid var(--line); border-radius: 12px; background: var(--white);
+  }
+  .btn { border-radius: 14px; padding: 14px; font-size: 15px; font-weight: 700; }
+  .btn-primary { background: var(--rose); color: #fff; width: 100%; margin-top: 20px; }
+  .btn:disabled { background: var(--line); }
+  .login-msg { font-size: 13px; color: var(--danger); margin-top: 10px; min-height: 18px; }
+
+  /* ===== ホーム ===== */
+  .page { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+  .card { background: var(--white); border: 1px solid var(--line); border-radius: 18px; padding: 16px; }
+  .card-label { font-size: 12px; color: var(--muted); }
+  .big-pt { font-size: 32px; font-weight: 700; color: var(--rose); }
+  .big-pt small { font-size: 15px; }
+  .stat-row { display: flex; gap: 18px; margin-top: 10px; font-size: 13px; }
+  .stat-row b { font-size: 15px; }
+  .stat-row .k { color: var(--muted); }
+  .notice-card { background: var(--gold-bg); border: 1px solid #EAD9B0; border-radius: 18px; padding: 14px 16px; font-size: 13px; line-height: 1.8; }
+  .notice-card b { color: var(--gold); }
+
+  /* ===== 会話リスト ===== */
+  .conv-item {
+    width: 100%; text-align: left; display: flex; align-items: center; gap: 12px;
+    padding: 13px 16px; border-bottom: 1px solid var(--line); background: transparent;
+  }
+  .conv-item.unread { background: var(--white); }
+  .avatar {
+    width: 42px; height: 42px; border-radius: 50%; background: var(--rose); color: #fff;
+    display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0;
+  }
+  .conv-main { flex: 1; min-width: 0; }
+  .conv-top { display: flex; justify-content: space-between; font-size: 14px; }
+  .conv-top time { font-size: 11px; color: var(--muted); font-weight: 400; }
+  .conv-last { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+  .unread-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--rose); flex-shrink: 0; }
+  .conv-ended { font-size: 10px; color: var(--muted); border: 1px solid var(--line); padding: 1px 6px; border-radius: 999px; flex-shrink: 0; }
+  .list-empty { text-align: center; color: var(--muted); font-size: 13px; padding: 40px 20px; line-height: 1.9; }
+
+  /* ===== 会話画面 ===== */
+  #chatDetail { display: none; flex-direction: column; height: 100%; }
+  .chat-header {
+    background: var(--white); border-bottom: 1px solid var(--line);
+    padding: 9px 12px; display: flex; align-items: center; gap: 8px; font-size: 14px; flex-shrink: 0;
+  }
+  .chat-header .back { color: var(--rose); font-weight: 700; font-size: 18px; padding: 2px 8px; }
+  .chat-header .client-balance { margin-left: auto; font-size: 11px; color: var(--gold); font-weight: 700; text-align: right; line-height: 1.4; }
+  .ended-note { background: #F1EDEA; color: var(--muted); font-size: 12px; text-align: center; padding: 7px 12px; flex-shrink: 0; }
+
+  #msgList { flex: 1; overflow-y: auto; padding: 14px 12px; display: flex; flex-direction: column; gap: 11px; }
+  .msg { max-width: 82%; display: flex; flex-direction: column; }
+  .msg.me { align-self: flex-end; align-items: flex-end; }
+  .msg.other { align-self: flex-start; align-items: flex-start; }
+  .msg-meta { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+  .msg-bubble {
+    padding: 9px 13px; font-size: 14px; line-height: 1.8; white-space: pre-wrap; word-break: break-word;
+    animation: pop .18s ease-out;
+  }
+  .msg.me .msg-bubble { background: var(--rose); color: #fff; border-radius: 14px 14px 4px 14px; }
+  .msg.other .msg-bubble { background: var(--white); border: 1px solid var(--line); border-radius: 14px 14px 14px 4px; }
+  .badge-pt { background: var(--gold-bg); color: var(--gold); font-weight: 700; padding: 0 7px; border-radius: 999px; }
+  .badge-free { background: var(--free-bg); color: var(--free); border: 1px solid var(--free); font-weight: 700; padding: 0 7px; border-radius: 999px; }
+  @keyframes pop { from { transform: translateY(4px); opacity: 0; } to { transform: none; opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .msg-bubble { animation: none; } }
+
+  .tpl-row { padding: 0 10px 6px; display: flex; gap: 8px; overflow-x: auto; flex-shrink: 0; }
+  .tpl-row button {
+    background: var(--white); border: 1px solid var(--line); color: var(--rose);
+    font-size: 12px; padding: 6px 12px; border-radius: 999px; white-space: nowrap;
+  }
+
+  .composer { padding: 8px 10px calc(8px + env(safe-area-inset-bottom)); flex-shrink: 0; }
+  .composer-box { background: var(--white); border: 1.5px solid var(--line); border-radius: 18px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
+  .composer-box.over { border-color: var(--danger); }
+  .composer-info { font-size: 12px; font-weight: 700; color: var(--gold); padding: 0 4px; }
+  .composer-info.free { color: var(--free); font-weight: 400; }
+  .composer-info.over { color: var(--danger); }
+  .composer-row { display: flex; align-items: flex-end; gap: 6px; }
+  .toggle-paid {
+    padding: 9px 12px; border-radius: 12px; font-size: 12px; font-weight: 700; color: #fff; flex-shrink: 0;
+    background: var(--gold); transition: background .15s;
+  }
+  .toggle-paid.free { background: var(--free); }
+  .btn-tpl { padding: 9px 10px; border-radius: 12px; font-size: 12px; font-weight: 700; color: var(--rose); border: 1px solid var(--line); flex-shrink: 0; }
+  .composer-row textarea { flex: 1; border: none; resize: none; font-size: 14px; line-height: 1.7; max-height: 110px; padding: 6px 2px; background: transparent; }
+  .btn-send {
+    width: 42px; height: 42px; border-radius: 50%; background: var(--rose); color: #fff;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .btn-send:disabled { background: var(--line); }
+
+  /* ===== 待機 ===== */
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; }
+  .toggle-row .t-label { font-size: 14px; font-weight: 700; }
+  .toggle-row .t-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .switch { position: relative; width: 54px; height: 30px; border-radius: 999px; background: #D8D2CC; transition: background .18s; flex-shrink: 0; }
+  .switch.on { background: var(--green); }
+  .switch .knob { position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; transition: left .18s; }
+  .switch.on .knob { left: 27px; }
+  .hint { font-size: 11px; color: var(--muted); line-height: 1.7; margin-top: 10px; }
+  .nextlogin-row { display: flex; gap: 8px; margin-top: 8px; }
+  .nextlogin-row input { flex: 1; font-size: 14px; padding: 11px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); }
+  .nextlogin-row .btn { padding: 0 18px; background: var(--rose); color: #fff; border-radius: 12px; font-size: 14px; }
+  .published-note { font-size: 12px; color: var(--gold); margin-top: 8px; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%);
+    background: rgba(58, 36, 48, .92); color: #fff; font-size: 13px;
+    padding: 10px 18px; border-radius: 999px; z-index: 200; display: none; max-width: 90%;
+  }
+  .logout-link { text-align: center; font-size: 12px; color: var(--muted); padding: 10px; text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<!-- ===== ログイン ===== -->
+<div id="loginView">
+  <h1 class="brand">キューピッズ</h1>
+  <div class="sub">占い師 管理アプリ</div>
+  <label>メールアドレス</label>
+  <input type="email" id="loginEmail" autocomplete="email">
+  <label>パスワード</label>
+  <input type="password" id="loginPassword" autocomplete="current-password">
+  <div class="login-msg" id="loginMsg"></div>
+  <button class="btn btn-primary" onclick="doLogin()">ログイン</button>
+</div>
+
+<!-- ===== アプリ本体 ===== -->
+<div id="app" style="display:none;">
+  <header>
+    <span class="brand" style="font-size:17px; font-weight:600;">キューピッズ</span>
+    <span class="header-badge">管理</span>
+    <div class="header-status" id="headerStatus"><span class="dot"></span><span id="headerStatusText">オフライン</span></div>
+  </header>
+
+  <main>
+    <!-- ホーム -->
+    <div id="tab-home" class="page">
+      <div class="card">
+        <div class="card-label">本日の獲得ポイント</div>
+        <div class="big-pt" id="todayPt">--<small> pt</small></div>
+        <div class="stat-row">
+          <div><span class="k">有料メッセージ</span> <b id="todayMsgs">-</b>件</div>
+          <div><span class="k">対応した相談</span> <b id="todayConvs">-</b>件</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-label">未返信の相談</div>
+        <div class="big-pt" style="color:var(--ink); font-size:26px;" id="unreadCount">-<small> 件</small></div>
+      </div>
+      <div class="notice-card" id="nextLoginCard" style="display:none;">
+        次回ログイン予定を公開中：<b id="nextLoginHome"></b>
+        <div style="font-size:11px; color:var(--muted); margin-top:4px;">お客様のページに表示されています</div>
+      </div>
+      <button class="logout-link" onclick="doLogout()">ログアウト</button>
+    </div>
+
+    <!-- チャット一覧 -->
+    <div id="tab-chat" style="display:none;">
+      <div id="convList"></div>
+    </div>
+
+    <!-- 会話画面 -->
+    <div id="chatDetail">
+      <div class="chat-header">
+        <button class="back" onclick="closeChat()">←</button>
+        <b id="chatClientName"></b>
+        <div class="client-balance" id="chatClientBalance"></div>
+      </div>
+      <div class="ended-note" id="chatEndedNote" style="display:none;">お客様が相談を終了しています（有料メッセージは送れません）</div>
+      <div id="msgList"></div>
+      <div class="tpl-row" id="tplRow" style="display:none;"></div>
+      <div class="composer">
+        <div class="composer-box" id="composerBox">
+          <div class="composer-info" id="composerInfo"></div>
+          <div class="composer-row">
+            <button class="toggle-paid" id="paidToggle" onclick="togglePaid()">有料</button>
+            <button class="btn-tpl" onclick="toggleTpl()">テンプレ</button>
+            <textarea id="msgInput" rows="1" placeholder="メッセージ…"></textarea>
+            <button class="btn-send" id="sendBtn" disabled aria-label="送信">
+              <svg width="18" height="18" viewBox="0 0 24 24"><path d="M3 20 L21 12 L3 4 V10 L15 12 L3 14 Z" fill="#fff"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 待機 -->
+    <div id="tab-standby" class="page" style="display:none;">
+      <div class="card">
+        <div class="card-label" style="color:var(--rose); font-weight:700; margin-bottom:10px;">待機設定（全サイト共通）</div>
+        <div class="toggle-row">
+          <div>
+            <div class="t-label">チャット新規受付</div>
+            <div class="t-sub">文字数チャットの新しいご相談を受け付ける</div>
+          </div>
+          <button class="switch" id="chatSwitch" onclick="toggleChatOpen()" aria-label="チャット新規受付"><span class="knob"></span></button>
+        </div>
+        <div class="toggle-row">
+          <div>
+            <div class="t-label">電話待機</div>
+            <div class="t-sub">電話サイトに「待機中」と表示される</div>
+          </div>
+          <button class="switch" id="phoneSwitch" onclick="togglePhone()" aria-label="電話待機"><span class="knob"></span></button>
+        </div>
+        <div class="hint">切り替えると電話サイト・チャットサイトの表示が即時に変わります。</div>
+      </div>
+
+      <div class="card">
+        <div class="card-label" style="color:var(--rose); font-weight:700;">次回ログイン予定</div>
+        <div class="nextlogin-row">
+          <input type="text" id="nextLoginInput" placeholder="例：7/12(日) 21:00〜23:00">
+          <button class="btn" onclick="publishNextLogin()">公開</button>
+        </div>
+        <div class="published-note" id="publishedNote" style="display:none;"></div>
+        <div class="hint">空欄で「公開」すると表示を消せます。</div>
+      </div>
+    </div>
+  </main>
+
+  <nav>
+    <button id="nav-home" class="active" onclick="showTab('home')">
+      <svg width="22" height="22" viewBox="0 0 24 24"><path d="M3 11.5 L12 3.5 L21 11.5 M5.5 10 V20.5 H10 V14.5 H14 V20.5 H18.5 V10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>ホーム</span>
+    </button>
+    <button id="nav-chat" onclick="showTab('chat')">
+      <svg width="22" height="22" viewBox="0 0 24 24"><path d="M4.5 4.5 H19.5 V15.5 H9.5 L4.5 19.5 V4.5 Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+      <span>チャット</span>
+    </button>
+    <button id="nav-standby" onclick="showTab('standby')">
+      <svg width="22" height="22" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5 V12 L15 14.5"/></g></svg>
+      <span>待機</span>
+    </button>
+  </nav>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-functions-compat.js"></script>
+<script src="config.js"></script>
+<script>
+firebase.initializeApp(CUPIDS.firebase);
+const auth = firebase.auth();
+const db = firebase.firestore();
+const functions = firebase.app().functions(CUPIDS.region);
+const RATE = CUPIDS.rate;
+
+const QUICK_REPLIES = ["視てみますね", "今日はどうされましたか？", "こんばんは", "少々お待ちくださいね"];
+
+let tellerId = null;
+let tellerDoc = null;      // fortuneTellers の中身
+let conversations = [];    // 会話リスト
+let currentConv = null;    // 開いている会話 {id, data}
+let clientBalance = 0;
+let paidMode = true;
+let sending = false;
+let unsubTeller = null, unsubConvs = null, unsubMsgs = null, unsubClient = null;
+
+const $ = (id) => document.getElementById(id);
+
+function toast(text) {
+  const el = $('toast');
+  el.textContent = text;
+  el.style.display = 'block';
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.style.display = 'none'; }, 3000);
+}
+
+// ===== 認証・占い師チェック =====
+auth.onAuthStateChanged(async (user) => {
+  if (unsubTeller) { unsubTeller(); unsubTeller = null; }
+  if (unsubConvs) { unsubConvs(); unsubConvs = null; }
+  closeChat();
+
+  if (!user) {
+    $('loginView').style.display = 'block';
+    $('app').style.display = 'none';
+    return;
+  }
+
+  // 占い師確認（fortuneTellers のドキュメントID = 占い師のuid）
+  const ftSnap = await db.collection('fortuneTellers').doc(user.uid).get();
+  if (!ftSnap.exists) {
+    $('loginMsg').textContent = 'このアカウントは占い師として登録されていません';
+    await auth.signOut();
+    return;
+  }
+
+  tellerId = user.uid;
+  $('loginView').style.display = 'none';
+  $('app').style.display = 'flex';
+
+  subscribeTeller();
+  subscribeConversations();
+  loadTodayStats();
+});
+
+async function doLogin() {
+  const email = $('loginEmail').value.trim();
+  const password = $('loginPassword').value;
+  const msg = $('loginMsg');
+  msg.textContent = '';
+  if (!email || !password) { msg.textContent = 'メールアドレスとパスワードを入力してください'; return; }
+  try {
+    await auth.signInWithEmailAndPassword(email, password);
+  } catch (e) {
+    msg.textContent = 'ログインに失敗しました。メールアドレスとパスワードをご確認ください';
+  }
+}
+
+async function doLogout() {
+  await auth.signOut();
+}
+
+// ===== タブ =====
+function showTab(name) {
+  closeChat();
+  ['home', 'chat', 'standby'].forEach(t => {
+    $('tab-' + t).style.display = (t === name) ? (t === 'chat' ? 'block' : 'flex') : 'none';
+    $('nav-' + t).classList.toggle('active', t === name);
+  });
+  if (name === 'home') loadTodayStats();
+}
+
+// ===== 待機状態（fortuneTellers を購読） =====
+function subscribeTeller() {
+  unsubTeller = db.collection('fortuneTellers').doc(tellerId).onSnapshot(doc => {
+    tellerDoc = doc.data() || {};
+    const chatOpen = tellerDoc.mojiChatOpen === true;
+    const phoneWaiting = tellerDoc.phoneStatus === 'waiting' || tellerDoc.phoneStatus === 'available';
+
+    $('chatSwitch').classList.toggle('on', chatOpen);
+    $('phoneSwitch').classList.toggle('on', phoneWaiting);
+
+    const on = chatOpen || phoneWaiting;
+    $('headerStatus').classList.toggle('on', on);
+    $('headerStatusText').textContent = on ? '待機中' : 'オフライン';
+
+    const nl = (tellerDoc.nextLoginText || '').trim();
+    $('nextLoginCard').style.display = nl ? 'block' : 'none';
+    $('nextLoginHome').textContent = nl;
+    $('publishedNote').style.display = nl ? 'block' : 'none';
+    $('publishedNote').textContent = nl ? `公開中：${nl}` : '';
+    if (document.activeElement !== $('nextLoginInput')) $('nextLoginInput').value = nl;
+  });
+}
+
+async function toggleChatOpen() {
+  const next = !(tellerDoc && tellerDoc.mojiChatOpen === true);
+  try {
+    await db.collection('fortuneTellers').doc(tellerId).update({ mojiChatOpen: next });
+    toast(next ? 'チャット新規受付を開始しました' : 'チャット新規受付を停止しました');
+  } catch (e) { console.error(e); toast('切り替えに失敗しました'); }
+}
+
+async function togglePhone() {
+  const waiting = tellerDoc && (tellerDoc.phoneStatus === 'waiting' || tellerDoc.phoneStatus === 'available');
+  try {
+    await db.collection('fortuneTellers').doc(tellerId).update({ phoneStatus: waiting ? 'offline' : 'waiting' });
+    toast(waiting ? '電話待機を終了しました' : '電話待機を開始しました');
+  } catch (e) { console.error(e); toast('切り替えに失敗しました'); }
+}
+
+async function publishNextLogin() {
+  const text = $('nextLoginInput').value.trim();
+  try {
+    await db.collection('fortuneTellers').doc(tellerId).update({ nextLoginText: text });
+    toast(text ? '次回ログイン予定を公開しました' : '次回ログイン予定を消しました');
+  } catch (e) { console.error(e); toast('公開に失敗しました'); }
+}
+
+// ===== ホーム統計 =====
+async function loadTodayStats() {
+  if (!tellerId) return;
+  try {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const snap = await db.collection('mojiMessages')
+      .where('senderId', '==', tellerId)
+      .where('paid', '==', true)
+      .where('createdAt', '>=', firebase.firestore.Timestamp.fromDate(start))
+      .get();
+    let pt = 0;
+    const convIds = new Set();
+    snap.forEach(d => { pt += d.data().cost || 0; convIds.add(d.data().conversationId); });
+    $('todayPt').innerHTML = `${pt.toLocaleString()}<small> pt</small>`;
+    $('todayMsgs').textContent = snap.size;
+    $('todayConvs').textContent = convIds.size;
+  } catch (e) {
+    console.error('統計の取得に失敗:', e);
+    $('todayPt').innerHTML = `-<small> pt</small>`;
+  }
+}
+
+// ===== 会話リスト =====
+function subscribeConversations() {
+  unsubConvs = db.collection('mojiConversations')
+    .where('tellerId', '==', tellerId)
+    .orderBy('lastMessageAt', 'desc')
+    .onSnapshot(snap => {
+      conversations = snap.docs.map(d => ({ id: d.id, data: d.data() }));
+      renderConvList();
+      const unread = conversations.filter(c => c.data.unreadByTeller === true).length;
+      $('unreadCount').innerHTML = `${unread}<small> 件</small>`;
+    }, err => console.error('会話リスト購読エラー:', err));
+}
+
+function fmtTime(ts) {
+  if (!ts || !ts.toDate) return '';
+  const d = ts.toDate();
+  const now = new Date();
+  if (d.toDateString() === now.toDateString()) {
+    return d.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+  }
+  const days = Math.floor((now - d) / 86400000);
+  if (days < 7) return `${days === 0 ? 1 : days}日前`;
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+}
+
+function renderConvList() {
+  const list = $('convList');
+  list.innerHTML = '';
+  if (!conversations.length) {
+    list.innerHTML = '<div class="list-empty">まだ相談はありません。<br>お客様からの最初のメッセージを待ちましょう。</div>';
+    return;
+  }
+  conversations.forEach(c => {
+    const d = c.data;
+    const btn = document.createElement('button');
+    btn.className = 'conv-item' + (d.unreadByTeller ? ' unread' : '');
+    btn.onclick = () => openChat(c.id);
+    btn.innerHTML = `
+      <div class="avatar">${(d.clientName || 'お')[0]}</div>
+      <div class="conv-main">
+        <div class="conv-top"><b>${escapeHtml(d.clientName || 'お客様')} さま</b><time>${fmtTime(d.lastMessageAt)}</time></div>
+        <div class="conv-last">${escapeHtml(d.lastMessageText || '')}</div>
+      </div>
+      ${d.status === 'ended' ? '<span class="conv-ended">終了</span>' : ''}
+      ${d.unreadByTeller ? '<span class="unread-dot"></span>' : ''}`;
+    list.appendChild(btn);
+  });
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+}
+
+// ===== 会話画面 =====
+function openChat(id) {
+  const c = conversations.find(x => x.id === id);
+  if (!c) return;
+  currentConv = c;
+
+  $('tab-chat').style.display = 'none';
+  $('tab-home').style.display = 'none';
+  $('tab-standby').style.display = 'none';
+  $('chatDetail').style.display = 'flex';
+  $('chatClientName').textContent = `${c.data.clientName || 'お客様'} さま`;
+
+  renderChatState();
+
+  // メッセージ購読
+  if (unsubMsgs) unsubMsgs();
+  unsubMsgs = db.collection('mojiMessages')
+    .where('conversationId', '==', id)
+    .orderBy('createdAt', 'asc')
+    .onSnapshot(snap => renderMessages(snap), err => console.error('メッセージ購読エラー:', err));
+
+  // お客さんの残高購読（書きすぎ防止の目安表示）
+  if (unsubClient) unsubClient();
+  unsubClient = db.collection('users').doc(c.data.clientId).onSnapshot(doc => {
+    clientBalance = (doc.data() && doc.data().points) || 0;
+    updateClientBalanceView();
+    updateComposer();
+  });
+
+  // 既読化
+  if (c.data.unreadByTeller === true) {
+    db.collection('mojiConversations').doc(id).update({
+      unreadByTeller: false,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(() => {});
+  }
+}
+
+function closeChat() {
+  if (unsubMsgs) { unsubMsgs(); unsubMsgs = null; }
+  if (unsubClient) { unsubClient(); unsubClient = null; }
+  if (!currentConv) return;
+  currentConv = null;
+  $('chatDetail').style.display = 'none';
+  $('tab-chat').style.display = 'block';
+  $('nav-chat').classList.add('active');
+  $('nav-home').classList.remove('active');
+  $('nav-standby').classList.remove('active');
+  $('tab-home').style.display = 'none';
+  $('tab-standby').style.display = 'none';
+}
+
+function renderChatState() {
+  // リストの最新データを反映（終了状態の変化など）
+  const latest = conversations.find(x => x.id === (currentConv && currentConv.id));
+  if (latest) currentConv = latest;
+  const ended = currentConv && currentConv.data.status === 'ended';
+  $('chatEndedNote').style.display = ended ? 'block' : 'none';
+  if (ended && paidMode) { paidMode = false; renderPaidToggle(); }
+  updateComposer();
+}
+
+function updateClientBalanceView() {
+  $('chatClientBalance').innerHTML =
+    `お客様残高 ${clientBalance.toLocaleString()}pt<br>＝あと${Math.floor(clientBalance / RATE).toLocaleString()}文字`;
+}
+
+function renderMessages(snap) {
+  const box = $('msgList');
+  box.innerHTML = '';
+  snap.forEach(doc => {
+    const m = doc.data();
+    const mine = m.senderRole === 'teller';
+    const wrap = document.createElement('div');
+    wrap.className = 'msg ' + (mine ? 'me' : 'other');
+    const badge = m.paid
+      ? `<span class="badge-pt">${(m.cost || 0).toLocaleString()}pt</span>`
+      : `<span class="badge-free">無料</span>`;
+    wrap.innerHTML = `<div class="msg-meta"><span>${fmtTime(m.createdAt)}</span>${badge}</div>`;
+    const bubble = document.createElement('div');
+    bubble.className = 'msg-bubble';
+    bubble.textContent = m.text;
+    wrap.appendChild(bubble);
+    box.appendChild(wrap);
+  });
+  box.scrollTop = box.scrollHeight;
+}
+
+// ===== 有料/無料トグル・テンプレ =====
+function togglePaid() {
+  const ended = currentConv && currentConv.data.status === 'ended';
+  if (ended) { toast('お客様が終了した相談では有料メッセージを送れません'); return; }
+  paidMode = !paidMode;
+  renderPaidToggle();
+  updateComposer();
+}
+
+function renderPaidToggle() {
+  const t = $('paidToggle');
+  t.textContent = paidMode ? '有料' : '無料';
+  t.classList.toggle('free', !paidMode);
+}
+
+function toggleTpl() {
+  const row = $('tplRow');
+  row.style.display = row.style.display === 'none' ? 'flex' : 'none';
+}
+
+(function renderTpl() {
+  const row = $('tplRow');
+  QUICK_REPLIES.forEach(q => {
+    const b = document.createElement('button');
+    b.textContent = q;
+    b.onclick = () => { const i = $('msgInput'); i.value += q; i.dispatchEvent(new Event('input')); };
+    row.appendChild(b);
+  });
+})();
+
+// ===== 入力・送信 =====
+const input = $('msgInput');
+input.addEventListener('input', () => {
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 110) + 'px';
+  updateComposer();
+});
+
+function updateComposer() {
+  const len = input.value.length;
+  const info = $('composerInfo');
+  const remaining = Math.floor(clientBalance / RATE);
+  const over = paidMode && len > remaining;
+
+  if (paidMode) {
+    info.className = 'composer-info' + (over ? ' over' : '');
+    info.textContent = `残り${Math.max(remaining - len, 0).toLocaleString()}文字・この送信 ${(len * RATE).toLocaleString()}pt` + (over ? '（お客様の残高を超えています）' : '');
+  } else {
+    info.className = 'composer-info free';
+    info.textContent = '無料メッセージ（ポイント消費なし）';
+  }
+  $('composerBox').classList.toggle('over', over);
+  $('sendBtn').disabled = sending || !input.value.trim() || over;
+}
+updateComposer();
+
+$('sendBtn').addEventListener('click', sendMessage);
+
+async function sendMessage() {
+  if (!currentConv || sending) return;
+  const text = input.value.trim();
+  if (!text) return;
+  sending = true;
+  updateComposer();
+
+  try {
+    await functions.httpsCallable('mojiSendMessage')({
+      conversationId: currentConv.id,
+      text: text,
+      paid: paidMode
+    });
+    input.value = '';
+    input.style.height = 'auto';
+    $('tplRow').style.display = 'none';
+    loadTodayStats();
+  } catch (e) {
+    console.error('送信エラー:', e);
+    const reason = e.details && e.details.reason;
+    if (reason === 'insufficient') toast('お客様の残高が不足しています。無料に切り替えるか文字数を減らしてください');
+    else if (reason === 'ended') toast('お客様が相談を終了しているため有料メッセージは送れません');
+    else if (reason === 'inactive') toast('お客様の最終反応から7日以上経過しているため有料メッセージは送れません');
+    else if (reason === 'free-limit') toast('終了後のメッセージは1通までです');
+    else toast(e.message || '送信に失敗しました');
+  } finally {
+    sending = false;
+    updateComposer();
+  }
+}
+
+// 会話リストの更新で開いている会話の状態も追従させる
+setInterval(() => { if (currentConv) renderChatState(); }, 2000);
+
+// ===== PWA =====
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>キューピッズ 文字数チャット｜みなみ先生とじっくり話せる占いチャット</title>
+<meta name="description" content="1文字5ptの量り売りチャット占い。文字数を気にせず、みなみ先生にたっぷり相談できます。">
+<link rel="icon" href="icon-192.png">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700&family=Shippori+Mincho:wght@600&display=swap');
+
+  :root {
+    --rose: #B4456A;
+    --rose-dark: #8E3354;
+    --bg: #F7F5F2;
+    --ink: #3A2E33;
+    --muted: #9A8890;
+    --gold: #B8923E;
+    --gold-bg: #FAF3E3;
+    --free: #4E9B8F;
+    --free-bg: #EAF5F3;
+    --white: #FFFFFF;
+    --line: #EFD9E2;
+    --danger: #C0392B;
+    --green: #3BB273;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Zen Maru Gothic', sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+  }
+  button { font-family: inherit; border: none; cursor: pointer; background: none; }
+  textarea, input { font-family: inherit; }
+  textarea:focus, input:focus { outline: none; }
+
+  .brand { font-family: 'Shippori Mincho', serif; color: var(--rose); letter-spacing: .04em; }
+
+  /* ===== 共通ヘッダー ===== */
+  header {
+    background: var(--white);
+    border-bottom: 1px solid var(--line);
+    padding: 10px 16px;
+    display: flex; align-items: center; gap: 8px;
+    position: sticky; top: 0; z-index: 10;
+  }
+  .header-badge { background: var(--rose); color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 999px; }
+  .header-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+  /* ===== ランディング ===== */
+  #authView { max-width: 480px; margin: 0 auto; padding: 20px 16px 40px; }
+  .hero { text-align: center; padding: 18px 0 6px; }
+  .hero h1 { font-size: 22px; font-weight: 700; line-height: 1.5; }
+  .hero p { color: var(--muted); font-size: 13px; margin-top: 8px; line-height: 1.8; }
+
+  .teller-card {
+    background: var(--white); border: 1px solid var(--line); border-radius: 20px;
+    padding: 20px; margin-top: 18px; text-align: center;
+  }
+  .teller-photo {
+    width: 96px; height: 96px; border-radius: 50%; object-fit: cover;
+    border: 3px solid var(--line); background: var(--bg);
+  }
+  .teller-name { font-size: 18px; font-weight: 700; margin-top: 10px; }
+  .teller-skills { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .status-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 700; padding: 5px 14px; border-radius: 999px; margin-top: 12px;
+  }
+  .status-pill .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .status-open { background: #E8F6EE; color: var(--green); }
+  .status-open .dot { background: var(--green); }
+  .status-closed { background: #F1EDEA; color: var(--muted); }
+  .status-closed .dot { background: var(--muted); }
+  .next-login { font-size: 12px; color: var(--gold); margin-top: 10px; }
+  .reply-eta { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+  .price-note {
+    background: var(--gold-bg); border: 1px solid #EAD9B0; border-radius: 16px;
+    padding: 14px 16px; margin-top: 16px; font-size: 13px; line-height: 1.9;
+  }
+  .price-note b { color: var(--gold); }
+  .price-note ul { list-style: none; }
+  .price-note li::before { content: "・"; color: var(--gold); }
+
+  .auth-buttons { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+  .btn { border-radius: 14px; padding: 14px; font-size: 15px; font-weight: 700; transition: opacity .15s; }
+  .btn:active { opacity: .8; }
+  .btn-primary { background: var(--rose); color: #fff; }
+  .btn-outline { background: var(--white); color: var(--rose); border: 1.5px solid var(--rose); }
+  .btn:disabled { background: var(--line); color: #fff; cursor: default; }
+
+  /* ===== チャット画面 ===== */
+  #chatView { display: none; flex-direction: column; height: 100dvh; }
+  .balance-bar {
+    background: var(--gold-bg); border-bottom: 1px solid var(--line);
+    padding: 7px 16px; font-size: 13px; display: flex; align-items: center; gap: 8px;
+  }
+  .balance-bar b { color: var(--gold); }
+  .balance-bar .sub { color: var(--muted); font-size: 12px; }
+  .btn-charge {
+    margin-left: auto; background: var(--gold); color: #fff;
+    font-size: 12px; font-weight: 700; padding: 5px 12px; border-radius: 999px;
+  }
+
+  #messages {
+    flex: 1; overflow-y: auto; padding: 16px 14px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .msg { max-width: 82%; display: flex; flex-direction: column; }
+  .msg.me { align-self: flex-end; align-items: flex-end; }
+  .msg.other { align-self: flex-start; align-items: flex-start; }
+  .msg-meta { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+  .msg-bubble {
+    padding: 10px 14px; font-size: 14px; line-height: 1.8; white-space: pre-wrap; word-break: break-word;
+    animation: pop .18s ease-out;
+  }
+  .msg.me .msg-bubble { background: var(--rose); color: #fff; border-radius: 16px 16px 4px 16px; }
+  .msg.other .msg-bubble { background: var(--white); border: 1px solid var(--line); border-radius: 16px 16px 16px 4px; }
+  .badge-pt { background: var(--gold-bg); color: var(--gold); font-weight: 700; padding: 0 7px; border-radius: 999px; }
+  .badge-free { background: var(--free-bg); color: var(--free); border: 1px solid var(--free); font-weight: 700; padding: 0 7px; border-radius: 999px; }
+  .msg-system { align-self: center; font-size: 11px; color: var(--muted); background: var(--white); border: 1px solid var(--line); padding: 4px 12px; border-radius: 999px; }
+  @keyframes pop { from { transform: translateY(4px); opacity: 0; } to { transform: none; opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .msg-bubble { animation: none; } }
+
+  .empty-note { text-align: center; color: var(--muted); font-size: 13px; line-height: 2; margin-top: 30px; }
+
+  /* 終了バナー */
+  #endedBanner {
+    display: none; background: var(--white); border-top: 1px solid var(--line);
+    padding: 16px; text-align: center; font-size: 13px; color: var(--muted);
+  }
+  #endedBanner .btn { margin-top: 10px; width: 100%; }
+
+  /* 受付停止バナー（新規のみ） */
+  #closedBanner {
+    display: none; background: var(--white); border-top: 1px solid var(--line);
+    padding: 16px; text-align: center; font-size: 13px; color: var(--muted); line-height: 1.9;
+  }
+
+  /* 入力エリア */
+  #inputArea { padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); }
+  .input-box {
+    background: var(--white); border: 1.5px solid var(--line); border-radius: 18px; padding: 10px 12px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .input-box.over { border-color: var(--danger); }
+  .counter { font-size: 12px; font-weight: 700; color: var(--gold); padding: 0 4px; }
+  .counter.warn { color: var(--rose); }
+  .counter.over { color: var(--danger); }
+  .counter .sub { font-weight: 400; color: var(--muted); margin-left: 8px; }
+  .input-row { display: flex; align-items: flex-end; gap: 8px; }
+  .input-row textarea {
+    flex: 1; border: none; background: transparent; resize: none;
+    font-size: 15px; line-height: 1.7; max-height: 120px; padding: 4px;
+  }
+  .btn-send {
+    background: var(--rose); color: #fff; font-weight: 700; font-size: 14px;
+    border-radius: 12px; padding: 10px 18px; flex-shrink: 0;
+  }
+  .btn-send:disabled { background: var(--line); }
+  .over-note { font-size: 12px; font-weight: 700; color: var(--danger); padding: 0 4px; }
+
+  /* ===== モーダル ===== */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(58, 46, 51, .5);
+    z-index: 100; align-items: flex-end; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--white); border-radius: 22px 22px 0 0; width: 100%; max-width: 480px;
+    padding: 22px 20px calc(24px + env(safe-area-inset-bottom)); animation: up .22s ease-out;
+  }
+  @keyframes up { from { transform: translateY(30px); opacity: 0; } to { transform: none; opacity: 1; } }
+  .modal h2 { font-size: 16px; color: var(--rose); margin-bottom: 14px; }
+  .modal label { display: block; font-size: 12px; color: var(--muted); margin: 12px 0 4px; }
+  .modal input {
+    width: 100%; padding: 12px; font-size: 15px;
+    border: 1px solid var(--line); border-radius: 12px; background: var(--bg);
+  }
+  .modal .btn { width: 100%; margin-top: 16px; }
+  .modal-close { display: block; text-align: center; width: 100%; color: var(--muted); font-size: 13px; margin-top: 12px; }
+  .modal-msg { font-size: 13px; margin-top: 10px; min-height: 18px; }
+  .modal-msg.error { color: var(--danger); }
+  .modal-msg.success { color: var(--green); font-weight: 700; }
+  .modal-link { display: block; font-size: 13px; text-align: center; color: var(--rose); margin-top: 14px; }
+
+  .purchase-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+  .purchase-list a {
+    display: block; text-align: center; background: var(--white); border: 1.5px solid var(--rose);
+    color: var(--rose); font-weight: 700; font-size: 14px; padding: 12px; border-radius: 12px; text-decoration: none;
+  }
+  .divider { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; margin: 18px 0 4px; }
+  .divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+
+  /* メニューシート */
+  .menu-item { display: block; width: 100%; text-align: left; padding: 14px 6px; font-size: 15px; border-bottom: 1px solid var(--line); color: var(--ink); }
+  .menu-item.danger { color: var(--danger); }
+  .menu-item:last-child { border-bottom: none; }
+
+  .btn-menu { font-size: 22px; color: var(--muted); padding: 2px 8px; line-height: 1; }
+  .toast {
+    position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%);
+    background: rgba(58, 46, 51, .92); color: #fff; font-size: 13px;
+    padding: 10px 18px; border-radius: 999px; z-index: 200; display: none; max-width: 90%;
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== ヘッダー ===== -->
+<header>
+  <span class="brand" style="font-size:18px; font-weight:600;">キューピッズ</span>
+  <span class="header-badge">文字数チャット</span>
+  <div class="header-right">
+    <span id="headerStatus" style="font-size:12px; color:var(--muted);"></span>
+    <button class="btn-menu" id="menuBtn" style="display:none;" aria-label="メニュー">⋯</button>
+  </div>
+</header>
+
+<!-- ===== ランディング（未ログイン） ===== -->
+<div id="authView">
+  <div class="hero">
+    <h1>文字数を気にせず、<br>たっぷり相談できる占いチャット</h1>
+    <p>1文字5ptの量り売りだから、上限なし。<br>あなたのペースで、深いところまで。</p>
+  </div>
+
+  <div class="teller-card">
+    <img id="tellerPhoto" class="teller-photo" src="" alt="みなみ先生"
+         onerror="this.style.display='none'; document.getElementById('tellerPhotoFallback').style.display='flex';">
+    <div id="tellerPhotoFallback" class="teller-photo" style="display:none; align-items:center; justify-content:center; margin:0 auto; background:var(--rose); color:#fff; font-size:34px; font-weight:700;">南</div>
+    <div class="teller-name" id="tellerName">みなみ</div>
+    <div class="teller-skills" id="tellerSkills"></div>
+    <div id="tellerStatusPill" class="status-pill status-closed"><span class="dot"></span><span id="tellerStatusText">確認中…</span></div>
+    <div class="next-login" id="nextLoginText" style="display:none;"></div>
+    <div class="reply-eta" id="replyEta"></div>
+  </div>
+
+  <div class="price-note">
+    <b>ご利用のしくみ</b>
+    <ul>
+      <li>メッセージは <b>1文字5pt</b>（例: 100文字=500pt）</li>
+      <li>先生からの鑑定メッセージも文字数ぶんのポイントが必要です</li>
+      <li>挨拶や確認のメッセージは<b style="color:var(--free);">無料</b>で届くことがあります</li>
+      <li>残高が足りない文字数は送信できないので、使いすぎの心配はありません</li>
+      <li>「相談を終了する」を押せば、それ以降ポイントは消費されません</li>
+    </ul>
+  </div>
+
+  <div class="auth-buttons">
+    <button class="btn btn-primary" onclick="openModal('loginModal')">ログインして相談する</button>
+    <button class="btn btn-outline" onclick="openModal('signupModal')">新規会員登録（無料）</button>
+  </div>
+  <p style="text-align:center; font-size:12px; color:var(--muted); margin-top:14px;">
+    電話占いキューピッズの会員情報・ポイントがそのまま使えます
+  </p>
+</div>
+
+<!-- ===== チャット画面（ログイン後） ===== -->
+<div id="chatView">
+  <div class="balance-bar">
+    <b id="balanceText">残高 --pt</b>
+    <span class="sub" id="balanceChars"></span>
+    <button class="btn-charge" onclick="openModal('chargeModal')">チャージ</button>
+  </div>
+
+  <div id="messages"></div>
+
+  <div id="endedBanner">
+    この相談は終了しています。<br>履歴は残っているので、続きからいつでも再開できます。
+    <button class="btn btn-outline" onclick="resumeConversation()">相談を再開する</button>
+  </div>
+
+  <div id="closedBanner">
+    ただいま新規のご相談の受付を停止しています。<br>
+    <span id="closedNextLogin"></span>
+  </div>
+
+  <div id="inputArea">
+    <div class="input-box" id="inputBox">
+      <div class="counter" id="counter"></div>
+      <div class="input-row">
+        <textarea id="msgInput" rows="1" placeholder="メッセージを入力…"></textarea>
+        <button class="btn-send" id="sendBtn" disabled>送信</button>
+      </div>
+      <div class="over-note" id="overNote" style="display:none;">残高が足りません。チャージするか文字数を減らしてください。</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ログインモーダル ===== -->
+<div class="modal-overlay" id="loginModal">
+  <div class="modal">
+    <h2>ログイン</h2>
+    <label>メールアドレス</label>
+    <input type="email" id="loginEmail" autocomplete="email">
+    <label>パスワード</label>
+    <input type="password" id="loginPassword" autocomplete="current-password">
+    <div class="modal-msg error" id="loginMsg"></div>
+    <button class="btn btn-primary" onclick="doLogin()">ログイン</button>
+    <a class="modal-link" href="https://cupids-denwa.vercel.app/client-password-reset.html" target="_blank" rel="noopener">パスワードをお忘れの方</a>
+    <button class="modal-close" onclick="closeModal('loginModal')">閉じる</button>
+  </div>
+</div>
+
+<!-- ===== 新規登録モーダル ===== -->
+<div class="modal-overlay" id="signupModal">
+  <div class="modal">
+    <h2>新規会員登録（無料）</h2>
+    <label>お名前（ニックネーム可）</label>
+    <input type="text" id="signupName" autocomplete="nickname">
+    <label>メールアドレス</label>
+    <input type="email" id="signupEmail" autocomplete="email">
+    <label>パスワード（6文字以上）</label>
+    <input type="password" id="signupPassword" autocomplete="new-password">
+    <div class="modal-msg error" id="signupMsg"></div>
+    <button class="btn btn-primary" onclick="doSignup()">登録する</button>
+    <button class="modal-close" onclick="closeModal('signupModal')">閉じる</button>
+  </div>
+</div>
+
+<!-- ===== チャージモーダル ===== -->
+<div class="modal-overlay" id="chargeModal">
+  <div class="modal">
+    <h2>ポイントチャージ</h2>
+    <div style="font-size:13px;">現在の残高: <b id="chargeBalance" style="color:var(--gold);">--pt</b></div>
+    <div class="divider">ポイントを購入</div>
+    <div class="purchase-list" id="purchaseList"></div>
+    <p style="font-size:12px; color:var(--muted); margin-top:8px; line-height:1.8;">
+      ご購入後、チャージコードがメールで届きます。会員登録と同じメールアドレスでご購入いただくと自動でポイントが反映されます。
+    </p>
+    <div class="divider">チャージコードを入力</div>
+    <input type="text" id="chargeCode" placeholder="例: AB12CD34" autocapitalize="characters">
+    <div class="modal-msg" id="chargeMsg"></div>
+    <button class="btn btn-primary" onclick="applyChargeCode()">チャージする</button>
+    <button class="modal-close" onclick="closeModal('chargeModal')">閉じる</button>
+  </div>
+</div>
+
+<!-- ===== メニューシート ===== -->
+<div class="modal-overlay" id="menuModal">
+  <div class="modal">
+    <button class="menu-item" onclick="closeModal('menuModal'); openModal('chargeModal')">ポイントをチャージ</button>
+    <button class="menu-item danger" id="endMenuItem" onclick="closeModal('menuModal'); openModal('endModal')">相談を終了する</button>
+    <button class="menu-item" onclick="doLogout()">ログアウト</button>
+    <button class="modal-close" onclick="closeModal('menuModal')">閉じる</button>
+  </div>
+</div>
+
+<!-- ===== 終了確認モーダル ===== -->
+<div class="modal-overlay" id="endModal">
+  <div class="modal">
+    <h2>相談を終了しますか？</h2>
+    <p style="font-size:13px; line-height:1.9; color:var(--muted);">
+      終了すると、先生からの有料メッセージは届かなくなり、ポイントは消費されません。<br>
+      履歴は残るので、いつでも続きから再開できます。
+    </p>
+    <button class="btn btn-primary" onclick="endConversation()">終了する</button>
+    <button class="modal-close" onclick="closeModal('endModal')">やめておく</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-functions-compat.js"></script>
+<script src="config.js"></script>
+<script>
+firebase.initializeApp(CUPIDS.firebase);
+const auth = firebase.auth();
+const db = firebase.firestore();
+const functions = firebase.app().functions(CUPIDS.region);
+const RATE = CUPIDS.rate;
+const TELLER = CUPIDS.teller;
+
+let currentUser = null;
+let userBalance = 0;
+let conv = null;          // mojiConversations ドキュメントの中身
+let convExists = false;
+let tellerData = {};
+let unsubUser = null, unsubConv = null, unsubMsgs = null;
+let sending = false;
+
+const $ = (id) => document.getElementById(id);
+
+// ===== モーダル =====
+function openModal(id) { $(id).classList.add('open'); }
+function closeModal(id) { $(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(ov => {
+  ov.addEventListener('click', (e) => { if (e.target === ov) ov.classList.remove('open'); });
+});
+
+function toast(text) {
+  const el = $('toast');
+  el.textContent = text;
+  el.style.display = 'block';
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.style.display = 'none'; }, 3000);
+}
+
+// ===== 占い師情報（待機状態・次回ログイン予定）を購読 =====
+db.collection('fortuneTellers').doc(TELLER.id).onSnapshot(doc => {
+  tellerData = doc.exists ? doc.data() : {};
+  $('tellerName').textContent = tellerData.name || TELLER.name;
+  $('tellerSkills').textContent = tellerData.phoneSkills || '';
+  if (tellerData.imageUrl) { $('tellerPhoto').src = tellerData.imageUrl; $('tellerPhoto').style.visibility = 'visible'; }
+  $('replyEta').textContent = CUPIDS.replyEtaText;
+
+  const open = tellerData.mojiChatOpen === true;
+  const pill = $('tellerStatusPill');
+  pill.className = 'status-pill ' + (open ? 'status-open' : 'status-closed');
+  $('tellerStatusText').textContent = open ? '新規相談 受付中' : '新規受付 停止中';
+  $('headerStatus').textContent = open ? '受付中' : '';
+
+  const nl = (tellerData.nextLoginText || '').trim();
+  $('nextLoginText').style.display = nl ? 'block' : 'none';
+  $('nextLoginText').textContent = nl ? `次回ログイン予定: ${nl}` : '';
+  $('closedNextLogin').textContent = nl ? `次回ログイン予定: ${nl}` : (CUPIDS.replyEtaText);
+
+  updateComposerVisibility();
+});
+
+// ===== 認証 =====
+auth.onAuthStateChanged(user => {
+  currentUser = user;
+  if (unsubUser) { unsubUser(); unsubUser = null; }
+  if (unsubConv) { unsubConv(); unsubConv = null; }
+  if (unsubMsgs) { unsubMsgs(); unsubMsgs = null; }
+
+  if (user) {
+    closeModal('loginModal');
+    closeModal('signupModal');
+    $('authView').style.display = 'none';
+    $('chatView').style.display = 'flex';
+    $('menuBtn').style.display = 'block';
+    subscribeUser();
+    subscribeConversation();
+  } else {
+    $('authView').style.display = 'block';
+    $('chatView').style.display = 'none';
+    $('menuBtn').style.display = 'none';
+    conv = null; convExists = false;
+  }
+});
+
+async function doLogin() {
+  const email = $('loginEmail').value.trim();
+  const password = $('loginPassword').value;
+  const msg = $('loginMsg');
+  msg.textContent = '';
+  if (!email || !password) { msg.textContent = 'メールアドレスとパスワードを入力してください'; return; }
+  try {
+    await auth.signInWithEmailAndPassword(email, password);
+  } catch (e) {
+    if (e.code === 'auth/invalid-credential' || e.code === 'auth/wrong-password' || e.code === 'auth/user-not-found') {
+      msg.textContent = 'メールアドレスまたはパスワードが正しくありません';
+    } else if (e.code === 'auth/too-many-requests') {
+      msg.textContent = '試行回数が多すぎます。しばらく待ってからお試しください';
+    } else {
+      msg.textContent = 'ログインに失敗しました';
+    }
+  }
+}
+
+async function doSignup() {
+  const name = $('signupName').value.trim();
+  const email = $('signupEmail').value.trim();
+  const password = $('signupPassword').value;
+  const msg = $('signupMsg');
+  msg.textContent = '';
+  if (!name || !email || !password) { msg.textContent = 'すべての項目を入力してください'; return; }
+  if (password.length < 6) { msg.textContent = 'パスワードは6文字以上で入力してください'; return; }
+  try {
+    const result = await auth.createUserWithEmailAndPassword(email, password);
+    await db.collection('users').doc(result.user.uid).set({
+      name: name,
+      email: email,
+      points: 0,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch (e) {
+    if (e.code === 'auth/email-already-in-use') {
+      msg.textContent = 'このメールアドレスは登録済みです。ログインしてください';
+    } else {
+      msg.textContent = '登録に失敗しました: ' + (e.message || '');
+    }
+  }
+}
+
+async function doLogout() {
+  closeModal('menuModal');
+  await auth.signOut();
+}
+
+// ===== 残高購読（途中チャージも即反映） =====
+function subscribeUser() {
+  unsubUser = db.collection('users').doc(currentUser.uid).onSnapshot(doc => {
+    userBalance = (doc.data() && doc.data().points) || 0;
+    $('balanceText').textContent = `残高 ${userBalance.toLocaleString()}pt`;
+    $('balanceChars').textContent = `＝ あと${Math.floor(userBalance / RATE).toLocaleString()}文字`;
+    $('chargeBalance').textContent = `${userBalance.toLocaleString()}pt`;
+    updateCounter();
+  });
+}
+
+// ===== 会話・メッセージ購読 =====
+function convId() { return `${currentUser.uid}_${TELLER.id}`; }
+
+function subscribeConversation() {
+  unsubConv = db.collection('mojiConversations').doc(convId()).onSnapshot(doc => {
+    convExists = doc.exists;
+    conv = doc.exists ? doc.data() : null;
+    updateComposerVisibility();
+    // 既読化
+    if (doc.exists && conv.unreadByClient === true) {
+      doc.ref.update({ unreadByClient: false, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }).catch(() => {});
+    }
+  });
+
+  unsubMsgs = db.collection('mojiMessages')
+    .where('conversationId', '==', convId())
+    .orderBy('createdAt', 'asc')
+    .onSnapshot(snap => renderMessages(snap), err => {
+      console.error('メッセージ購読エラー:', err);
+    });
+}
+
+function fmtTime(ts) {
+  if (!ts || !ts.toDate) return '';
+  const d = ts.toDate();
+  const today = new Date();
+  const sameDay = d.toDateString() === today.toDateString();
+  const hm = d.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+  return sameDay ? hm : `${d.getMonth() + 1}/${d.getDate()} ${hm}`;
+}
+
+function renderMessages(snap) {
+  const box = $('messages');
+  box.innerHTML = '';
+
+  if (snap.empty) {
+    const div = document.createElement('div');
+    div.className = 'empty-note';
+    div.innerHTML = `${(tellerData.name || TELLER.name)}先生への最初のメッセージを送って、<br>相談を始めましょう。<br><span style="font-size:12px;">${CUPIDS.replyEtaText}</span>`;
+    box.appendChild(div);
+    return;
+  }
+
+  snap.forEach(doc => {
+    const m = doc.data();
+    const mine = m.senderRole === 'client';
+    const wrap = document.createElement('div');
+    wrap.className = 'msg ' + (mine ? 'me' : 'other');
+
+    const meta = document.createElement('div');
+    meta.className = 'msg-meta';
+    const who = mine ? '' : `<span>${tellerData.name || TELLER.name}</span>`;
+    const badge = m.paid
+      ? `<span class="badge-pt">${(m.cost || 0).toLocaleString()}pt</span>`
+      : `<span class="badge-free">無料</span>`;
+    meta.innerHTML = `${who}<span>${fmtTime(m.createdAt)}</span>${badge}`;
+
+    const bubble = document.createElement('div');
+    bubble.className = 'msg-bubble';
+    bubble.textContent = m.text;
+
+    wrap.appendChild(meta);
+    wrap.appendChild(bubble);
+    box.appendChild(wrap);
+  });
+
+  box.scrollTop = box.scrollHeight;
+}
+
+// ===== 入力欄の表示制御 =====
+function updateComposerVisibility() {
+  if (!currentUser) return;
+  const ended = convExists && conv && conv.status === 'ended';
+  const newButClosed = !convExists && tellerData.mojiChatOpen !== true;
+
+  $('endedBanner').style.display = ended ? 'block' : 'none';
+  $('closedBanner').style.display = (!ended && newButClosed) ? 'block' : 'none';
+  $('inputArea').style.display = (ended || newButClosed) ? 'none' : 'block';
+  $('endMenuItem').style.display = (convExists && !ended) ? 'block' : 'none';
+}
+
+// ===== 残り文字数カウンター =====
+const input = $('msgInput');
+input.addEventListener('input', () => {
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+  updateCounter();
+});
+
+function updateCounter() {
+  const len = input.value.length;
+  const remaining = Math.floor(userBalance / RATE);
+  const after = remaining - len;
+  const over = len > remaining;
+
+  const counter = $('counter');
+  counter.className = 'counter' + (over ? ' over' : after < 40 ? ' warn' : '');
+  counter.innerHTML = `残り ${Math.max(after, 0).toLocaleString()}文字` +
+    `<span class="sub">この送信 ${(len * RATE).toLocaleString()}pt</span>`;
+
+  $('inputBox').classList.toggle('over', over);
+  $('overNote').style.display = over ? 'block' : 'none';
+  $('sendBtn').disabled = sending || !input.value.trim() || over;
+}
+updateCounter();
+
+// ===== 送信 =====
+$('sendBtn').addEventListener('click', sendMessage);
+
+async function sendMessage() {
+  const text = input.value.trim();
+  if (!text || sending) return;
+  sending = true;
+  $('sendBtn').disabled = true;
+  $('sendBtn').textContent = '送信中…';
+
+  try {
+    await functions.httpsCallable('mojiSendMessage')({ tellerId: TELLER.id, text: text });
+    input.value = '';
+    input.style.height = 'auto';
+    updateCounter();
+  } catch (e) {
+    console.error('送信エラー:', e);
+    const reason = e.details && e.details.reason;
+    if (reason === 'insufficient') {
+      toast('ポイントが不足しています');
+      openModal('chargeModal');
+    } else if (reason === 'closed') {
+      toast('ただいま新規のご相談を受け付けていません');
+    } else {
+      toast(e.message || '送信に失敗しました。時間をおいてお試しください');
+    }
+  } finally {
+    sending = false;
+    $('sendBtn').textContent = '送信';
+    updateCounter();
+  }
+}
+
+// ===== 相談の終了・再開（お客さんの防御装置） =====
+async function endConversation() {
+  closeModal('endModal');
+  if (!convExists) return;
+  try {
+    await db.collection('mojiConversations').doc(convId()).update({
+      status: 'ended',
+      endedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    toast('相談を終了しました。ポイントはもう消費されません');
+  } catch (e) {
+    console.error(e);
+    toast('終了処理に失敗しました');
+  }
+}
+
+async function resumeConversation() {
+  try {
+    await db.collection('mojiConversations').doc(convId()).update({
+      status: 'active',
+      endedAt: firebase.firestore.FieldValue.delete(),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    toast('相談を再開しました');
+  } catch (e) {
+    console.error(e);
+    toast('再開に失敗しました');
+  }
+}
+
+// ===== チャージコード入力（既存サイトと同じ chargeCodes を使用） =====
+async function applyChargeCode() {
+  const codeInput = $('chargeCode');
+  const code = codeInput.value.trim().toUpperCase();
+  const msg = $('chargeMsg');
+  if (!code) { msg.textContent = 'コードを入力してください'; msg.className = 'modal-msg error'; return; }
+  if (!currentUser) { msg.textContent = 'ログインしてください'; msg.className = 'modal-msg error'; return; }
+
+  msg.textContent = '確認中…';
+  msg.className = 'modal-msg';
+
+  try {
+    const codeSnapshot = await db.collection('chargeCodes').where('chargeCode', '==', code).get();
+    if (codeSnapshot.empty) {
+      msg.textContent = '無効なコードです';
+      msg.className = 'modal-msg error';
+      return;
+    }
+    const codeDoc = codeSnapshot.docs[0];
+    const codeData = codeDoc.data();
+    if (codeData.used === true) {
+      msg.textContent = 'このコードのポイントはすでに反映済みです';
+      msg.className = 'modal-msg success';
+      return;
+    }
+    const points = codeData.points || 0;
+    const userRef = db.collection('users').doc(currentUser.uid);
+
+    await db.runTransaction(async (tx) => {
+      const userDoc = await tx.get(userRef);
+      const currentPoints = (userDoc.data() && userDoc.data().points) || 0;
+      tx.update(userRef, {
+        points: currentPoints + points,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      tx.update(codeDoc.ref, {
+        used: true,
+        usedBy: currentUser.uid,
+        usedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    });
+
+    await db.collection('chargeHistory').add({
+      userId: currentUser.uid,
+      email: currentUser.email,
+      points: points,
+      code: code,
+      source: 'chargeCode',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    msg.textContent = `${points.toLocaleString()}pt チャージしました！`;
+    msg.className = 'modal-msg success';
+    codeInput.value = '';
+  } catch (e) {
+    console.error('チャージエラー:', e);
+    msg.textContent = 'エラーが発生しました';
+    msg.className = 'modal-msg error';
+  }
+}
+
+// ===== 購入リンク =====
+(function renderPurchaseLinks() {
+  const list = $('purchaseList');
+  CUPIDS.purchaseLinks.forEach(p => {
+    const a = document.createElement('a');
+    a.href = p.url;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.textContent = p.label;
+    list.appendChild(a);
+  });
+})();
+
+// ===== メニュー =====
+$('menuBtn').addEventListener('click', () => openModal('menuModal'));
+</script>
+</body>
+</html>
