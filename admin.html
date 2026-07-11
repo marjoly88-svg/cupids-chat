@@ -135,31 +135,36 @@
   @keyframes pop { from { transform: translateY(4px); opacity: 0; } to { transform: none; opacity: 1; } }
   @media (prefers-reduced-motion: reduce) { .msg-bubble { animation: none; } }
 
-  .tpl-row { padding: 0 10px 6px; display: flex; gap: 8px; overflow-x: auto; flex-shrink: 0; }
-  .tpl-row button {
-    background: var(--white); border: 1px solid var(--line); color: var(--rose);
-    font-size: 12px; padding: 6px 12px; border-radius: 999px; white-space: nowrap;
+  /* 入力エリア（Stella型: 無料スイッチ＋定型文チップ常時表示＋大きめ入力欄） */
+  .composer { padding: 6px 10px calc(8px + env(safe-area-inset-bottom)); flex-shrink: 0; }
+  .composer-top { display: flex; align-items: center; gap: 8px; padding: 0 2px 6px; }
+  .free-switch { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--muted); flex-shrink: 0; }
+  .free-switch.on { color: var(--free); }
+  .switch.mini { width: 40px; height: 22px; }
+  .switch.mini .knob { width: 16px; height: 16px; top: 3px; left: 3px; }
+  .switch.mini.on { background: var(--free); }
+  .switch.mini.on .knob { left: 21px; }
+  .tpl-inline { display: flex; gap: 6px; overflow-x: auto; flex: 1; min-width: 0; scrollbar-width: none; }
+  .tpl-inline::-webkit-scrollbar { display: none; }
+  .tpl-inline button {
+    background: var(--white); border: 1px solid var(--free); color: var(--free);
+    font-size: 12px; padding: 5px 12px; border-radius: 999px; white-space: nowrap; flex-shrink: 0;
   }
 
-  .composer { padding: 8px 10px calc(8px + env(safe-area-inset-bottom)); flex-shrink: 0; }
-  .composer-box { background: var(--white); border: 1.5px solid var(--line); border-radius: 18px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
+  .composer-box { background: var(--white); border: 1.5px solid var(--line); border-radius: 16px; padding: 8px 10px 6px; display: flex; flex-direction: column; gap: 4px; }
   .composer-box.over { border-color: var(--danger); }
-  .composer-info { font-size: 12px; font-weight: 700; color: var(--gold); padding: 0 4px; }
+  .composer-info { font-size: 12px; font-weight: 700; color: var(--gold); padding: 0 2px; }
   .composer-info.free { color: var(--free); font-weight: 400; }
   .composer-info.over { color: var(--danger); }
-  .composer-row { display: flex; align-items: flex-end; gap: 6px; }
-  .toggle-paid {
-    padding: 9px 12px; border-radius: 12px; font-size: 12px; font-weight: 700; color: #fff; flex-shrink: 0;
-    background: var(--gold); transition: background .15s;
+  .composer-box textarea { width: 100%; border: none; resize: none; font-size: 14px; line-height: 1.7; max-height: 140px; padding: 4px 2px; background: transparent; }
+  .composer-actions { display: flex; align-items: center; gap: 10px; border-top: 1px solid var(--line); padding-top: 6px; }
+  .enter-send { margin-left: auto; display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--muted); }
+  .enter-send input { accent-color: var(--rose); }
+  .btn-send-text {
+    background: var(--rose); color: #fff; font-size: 14px; font-weight: 700;
+    padding: 8px 24px; border-radius: 10px; flex-shrink: 0;
   }
-  .toggle-paid.free { background: var(--free); }
-  .btn-tpl { padding: 9px 10px; border-radius: 12px; font-size: 12px; font-weight: 700; color: var(--rose); border: 1px solid var(--line); flex-shrink: 0; }
-  .composer-row textarea { flex: 1; border: none; resize: none; font-size: 14px; line-height: 1.7; max-height: 110px; padding: 6px 2px; background: transparent; }
-  .btn-send {
-    width: 42px; height: 42px; border-radius: 50%; background: var(--rose); color: #fff;
-    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-  }
-  .btn-send:disabled { background: var(--line); }
+  .btn-send-text:disabled { background: var(--line); }
 
   /* ===== 待機 ===== */
   .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; }
@@ -268,17 +273,20 @@
       </div>
       <div class="ended-note" id="chatEndedNote" style="display:none;">お客様が相談を終了しています（有料メッセージは送れません）</div>
       <div id="msgList"></div>
-      <div class="tpl-row" id="tplRow" style="display:none;"></div>
       <div class="composer">
+        <div class="composer-top">
+          <button class="free-switch" id="freeSwitch" onclick="togglePaid()" aria-label="無料メッセージに切り替え">
+            <span class="switch mini" id="freeKnob"><span class="knob"></span></span>
+            <span>無料</span>
+          </button>
+          <div class="tpl-inline" id="tplRow"></div>
+        </div>
         <div class="composer-box" id="composerBox">
           <div class="composer-info" id="composerInfo"></div>
-          <div class="composer-row">
-            <button class="toggle-paid" id="paidToggle" onclick="togglePaid()">有料</button>
-            <button class="btn-tpl" onclick="toggleTpl()">テンプレ</button>
-            <textarea id="msgInput" rows="1" placeholder="メッセージ…"></textarea>
-            <button class="btn-send" id="sendBtn" disabled aria-label="送信">
-              <svg width="18" height="18" viewBox="0 0 24 24"><path d="M3 20 L21 12 L3 4 V10 L15 12 L3 14 Z" fill="#fff"/></svg>
-            </button>
+          <textarea id="msgInput" rows="2" placeholder="鑑定メッセージを入力…（1文字6pt）"></textarea>
+          <div class="composer-actions">
+            <label class="enter-send"><input type="checkbox" id="enterSendChk"> Enterで送信</label>
+            <button class="btn-send-text" id="sendBtn" disabled>送信</button>
           </div>
         </div>
       </div>
@@ -338,7 +346,7 @@
   <div class="modal">
     <h2 id="memoTitle">お客様メモ</h2>
     <div style="font-size:11px; color:var(--muted); margin-bottom:8px;">
-      電話・チャットサイトと共通のメモです。お客様には表示されません（自分だけが見られます）。
+      メモはアナタ以外に見られることはありません（電話・チャットサイトと共通）。
     </div>
     <textarea id="memoField" placeholder="鑑定メモ・気づきなど…"></textarea>
     <button class="btn" id="memoSaveBtn" style="background:var(--rose); color:#fff; width:100%; margin-top:12px;" onclick="saveMemo()">保存</button>
@@ -620,7 +628,7 @@ function renderChatState() {
   if (latest) currentConv = latest;
   const ended = currentConv && currentConv.data.status === 'ended';
   $('chatEndedNote').style.display = ended ? 'block' : 'none';
-  if (ended && paidMode) { paidMode = false; renderPaidToggle(); }
+  if (ended && paidMode) { paidMode = false; renderModeUI(); }
   updateComposer();
 }
 
@@ -650,24 +658,21 @@ function renderMessages(snap) {
   box.scrollTop = box.scrollHeight;
 }
 
-// ===== 有料/無料トグル・テンプレ =====
+// ===== 無料スイッチ（Stella型: 入=無料）・定型文チップ =====
 function togglePaid() {
   const ended = currentConv && currentConv.data.status === 'ended';
   if (ended) { toast('お客様が終了した相談では有料メッセージを送れません'); return; }
   paidMode = !paidMode;
-  renderPaidToggle();
+  renderModeUI();
+}
+
+function renderModeUI() {
+  $('freeKnob').classList.toggle('on', !paidMode);
+  $('freeSwitch').classList.toggle('on', !paidMode);
+  $('msgInput').placeholder = paidMode
+    ? `鑑定メッセージを入力…（1文字${RATE}pt）`
+    : '無料メッセージを入力してください';
   updateComposer();
-}
-
-function renderPaidToggle() {
-  const t = $('paidToggle');
-  t.textContent = paidMode ? '有料' : '無料';
-  t.classList.toggle('free', !paidMode);
-}
-
-function toggleTpl() {
-  const row = $('tplRow');
-  row.style.display = row.style.display === 'none' ? 'flex' : 'none';
 }
 
 (function renderTpl() {
@@ -684,8 +689,18 @@ function toggleTpl() {
 const input = $('msgInput');
 input.addEventListener('input', () => {
   input.style.height = 'auto';
-  input.style.height = Math.min(input.scrollHeight, 110) + 'px';
+  input.style.height = Math.min(input.scrollHeight, 140) + 'px';
   updateComposer();
+});
+
+// Enterで送信（チェックON: Enter送信・Shift+Enterで改行 / OFF: Shift+Enter送信・Enterで改行）
+const enterChk = $('enterSendChk');
+enterChk.checked = localStorage.getItem('mojiEnterSend') === '1';
+enterChk.addEventListener('change', () => localStorage.setItem('mojiEnterSend', enterChk.checked ? '1' : '0'));
+input.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter') return;
+  const shouldSend = enterChk.checked ? !e.shiftKey : e.shiftKey;
+  if (shouldSend) { e.preventDefault(); sendMessage(); }
 });
 
 function updateComposer() {
@@ -704,7 +719,7 @@ function updateComposer() {
   $('composerBox').classList.toggle('over', over);
   $('sendBtn').disabled = sending || !input.value.trim() || over;
 }
-updateComposer();
+renderModeUI();
 
 $('sendBtn').addEventListener('click', sendMessage);
 
@@ -723,7 +738,6 @@ async function sendMessage() {
     });
     input.value = '';
     input.style.height = 'auto';
-    $('tplRow').style.display = 'none';
     loadTodayStats();
   } catch (e) {
     console.error('送信エラー:', e);
