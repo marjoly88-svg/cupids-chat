@@ -141,6 +141,17 @@
     padding: 16px; text-align: center; font-size: 13px; color: var(--muted); line-height: 1.9;
   }
 
+  /* 無料あいさつ定型文（タップでそのまま無料送信。文面はサーバー側で検証） */
+  .free-tpl { display: flex; align-items: center; gap: 6px; overflow-x: auto; padding: 0 2px 8px; scrollbar-width: none; }
+  .free-tpl::-webkit-scrollbar { display: none; }
+  .free-tpl .free-tpl-label { font-size: 11px; color: var(--muted); flex-shrink: 0; }
+  .free-tpl button {
+    background: var(--free-bg); border: 1px solid var(--free); color: var(--free);
+    font-size: 12px; font-weight: 700; padding: 5px 12px; border-radius: 999px;
+    white-space: nowrap; flex-shrink: 0;
+  }
+  .free-tpl button:disabled { opacity: .5; }
+
   /* 入力エリア */
   #inputArea { padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); }
   .input-box {
@@ -213,7 +224,7 @@
 
 <!-- ===== ヘッダー ===== -->
 <header>
-  <span class="brand" style="font-size:18px; font-weight:600;">キューピッズ</span>
+  <span class="brand" style="font-size:18px; font-weight:600; cursor:pointer;" onclick="goTop()" role="button" aria-label="トップページへ戻る">キューピッズ</span>
   <span class="header-badge">文字数チャット</span>
   <div class="header-right">
     <span id="headerStatus" style="font-size:12px; color:var(--muted);"></span>
@@ -250,9 +261,12 @@
     </ul>
   </div>
 
-  <div class="auth-buttons">
+  <div class="auth-buttons" id="authButtons">
     <button class="btn btn-primary" onclick="openModal('loginModal')">ログインして相談する</button>
     <button class="btn btn-outline" onclick="openModal('signupModal')">新規会員登録（無料）</button>
+  </div>
+  <div class="auth-buttons" id="backToChatWrap" style="display:none;">
+    <button class="btn btn-primary" onclick="openChatView()">相談ルームへ戻る</button>
   </div>
   <p style="text-align:center; font-size:12px; color:var(--muted); margin-top:14px;">
     電話占いキューピッズの会員情報・ポイントがそのまま使えます
@@ -280,6 +294,9 @@
   </div>
 
   <div id="inputArea">
+    <div class="free-tpl" id="freeTplRow">
+      <span class="free-tpl-label">無料で送れる▶</span>
+    </div>
     <div class="input-box" id="inputBox">
       <div class="counter" id="counter"></div>
       <div class="input-row">
@@ -343,6 +360,7 @@
 <!-- ===== メニューシート ===== -->
 <div class="modal-overlay" id="menuModal">
   <div class="modal">
+    <button class="menu-item" onclick="goTop()">トップページへ戻る</button>
     <button class="menu-item" onclick="closeModal('menuModal'); openModal('chargeModal')">ポイントをチャージ</button>
     <button class="menu-item danger" id="endMenuItem" onclick="closeModal('menuModal'); openModal('endModal')">相談を終了する</button>
     <button class="menu-item" onclick="doLogout()">ログアウト</button>
@@ -446,6 +464,7 @@ auth.onAuthStateChanged(user => {
     $('menuBtn').style.display = 'none';
     conv = null; convExists = false;
   }
+  updateTopButtons();
 });
 
 async function doLogin() {
@@ -736,6 +755,56 @@ async function applyChargeCode() {
     console.error('チャージエラー:', e);
     msg.textContent = 'エラーが発生しました';
     msg.className = 'modal-msg error';
+  }
+}
+
+// ===== トップページ⇔相談ルームの切り替え =====
+function goTop() {
+  closeModal('menuModal');
+  $('chatView').style.display = 'none';
+  $('authView').style.display = 'block';
+  updateTopButtons();
+  window.scrollTo(0, 0);
+}
+
+function openChatView() {
+  if (!currentUser) { openModal('loginModal'); return; }
+  $('authView').style.display = 'none';
+  $('chatView').style.display = 'flex';
+}
+
+function updateTopButtons() {
+  const loggedIn = !!currentUser;
+  $('authButtons').style.display = loggedIn ? 'none' : 'flex';
+  $('backToChatWrap').style.display = loggedIn ? 'flex' : 'none';
+}
+
+// ===== 無料あいさつ定型文（タップでそのまま無料送信） =====
+(function renderFreeTemplates() {
+  const row = $('freeTplRow');
+  (CUPIDS.clientFreeTemplates || []).forEach(t => {
+    const b = document.createElement('button');
+    b.textContent = t;
+    b.onclick = () => sendFreeTemplate(t, b);
+    row.appendChild(b);
+  });
+})();
+
+async function sendFreeTemplate(text, btn) {
+  if (sending) return;
+  sending = true;
+  btn.disabled = true;
+  try {
+    await functions.httpsCallable('mojiSendMessage')({ tellerId: TELLER.id, text: text, paid: false });
+  } catch (e) {
+    console.error('無料定型文送信エラー:', e);
+    const reason = e.details && e.details.reason;
+    if (reason === 'closed') toast('ただいま新規のご相談を受け付けていません');
+    else toast(e.message || '送信に失敗しました');
+  } finally {
+    sending = false;
+    btn.disabled = false;
+    updateCounter();
   }
 }
 

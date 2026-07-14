@@ -27,8 +27,13 @@ const CUPIDS = {
 
   replyEtaText: "通常24時間以内にお返事します",
 
+  // お客さんが無料で送れる定型あいさつ（サーバー側 mojiChat.js の CLIENT_FREE_TEMPLATES と必ず一致させること）
+  clientFreeTemplates: ["よろしくお願いします", "ありがとうございました", "こんばんは", "こんにちは", "わかりました"],
+
   // ポイント購入（STORES。既存の電話サイトと同じ商品）
   purchaseLinks: [
+    { label: "¥800（800pt）", url: "https://qpizzu.stores.jp/items/69403090d8e56add65a78a62" },
+    { label: "¥1,000（1,000pt）", url: "https://qpizzu.stores.jp/items/69b02f6f5b1e911a6f883834" },
     { label: "¥1,600（1,600pt）", url: "https://qpizzu.stores.jp/items/6940310ad493260333c4e495" },
     { label: "¥3,100（3,200pt）", url: "https://qpizzu.stores.jp/items/69403184f09fa01f4cd34dcb" },
     { label: "¥6,200（6,400pt）", url: "https://qpizzu.stores.jp/items/694031efaad66f2a49a06a8d" },
