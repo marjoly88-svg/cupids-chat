@@ -188,10 +188,15 @@
   @keyframes up { from { transform: translateY(30px); opacity: 0; } to { transform: none; opacity: 1; } }
   .modal h2 { font-size: 16px; color: var(--rose); margin-bottom: 14px; }
   .modal label { display: block; font-size: 12px; color: var(--muted); margin: 12px 0 4px; }
-  .modal input {
+  .modal input, .modal select {
     width: 100%; padding: 12px; font-size: 15px;
     border: 1px solid var(--line); border-radius: 12px; background: var(--bg);
+    font-family: inherit; color: var(--ink);
   }
+  .modal.scrollable { max-height: 82vh; overflow-y: auto; }
+  .karte-section { font-size: 14px; font-weight: 700; color: var(--rose); margin: 18px 0 4px; }
+  .karte-field { margin-top: 8px; }
+  .karte-field .k-label { font-size: 11px; color: var(--muted); margin-bottom: 3px; }
   .modal .btn { width: 100%; margin-top: 16px; }
   .modal-close { display: block; text-align: center; width: 100%; color: var(--muted); font-size: 13px; margin-top: 12px; }
   .modal-msg { font-size: 13px; margin-top: 10px; min-height: 18px; }
@@ -357,10 +362,26 @@
   </div>
 </div>
 
+<!-- ===== カルテ記入モーダル ===== -->
+<div class="modal-overlay" id="karteModal">
+  <div class="modal scrollable">
+    <h2>カルテ（プロフィール）</h2>
+    <p style="font-size:12px; color:var(--muted); line-height:1.8;">
+      ご記入いただくと、先生が鑑定の際に参考にします。わかる範囲でかまいません。<br>
+      チャットサイトのカルテと共通です。
+    </p>
+    <div id="karteForm"></div>
+    <div class="modal-msg" id="karteMsg"></div>
+    <button class="btn btn-primary" id="karteSaveBtn" onclick="saveKarte()">保存する</button>
+    <button class="modal-close" onclick="closeModal('karteModal')">閉じる</button>
+  </div>
+</div>
+
 <!-- ===== メニューシート ===== -->
 <div class="modal-overlay" id="menuModal">
   <div class="modal">
     <button class="menu-item" onclick="goTop()">トップページへ戻る</button>
+    <button class="menu-item" onclick="closeModal('menuModal'); openKarteEdit()">カルテを記入する</button>
     <button class="menu-item" onclick="closeModal('menuModal'); openModal('chargeModal')">ポイントをチャージ</button>
     <button class="menu-item danger" id="endMenuItem" onclick="closeModal('menuModal'); openModal('endModal')">相談を終了する</button>
     <button class="menu-item" onclick="doLogout()">ログアウト</button>
@@ -806,6 +827,110 @@ async function sendFreeTemplate(text, btn) {
     btn.disabled = false;
     updateCounter();
   }
+}
+
+// ===== カルテ記入（kartes/{自分のuid}・チャットサイトと共通形式） =====
+const KARTE_SECTIONS = [
+  { prefix: 'self', title: 'あなたの情報', partner: false },
+  { prefix: 'p1', title: 'お相手1（いる方のみ）', partner: true },
+  { prefix: 'p2', title: 'お相手2（いる方のみ）', partner: true }
+];
+
+function karteFieldHtml(prefix, key, label, kind) {
+  const id = `k_${prefix}_${key}`;
+  let input;
+  if (kind === 'gender') {
+    input = `<select id="${id}"><option value="">選択してください</option><option value="male">男性</option><option value="female">女性</option><option value="other">その他</option></select>`;
+  } else if (kind === 'blood') {
+    input = `<select id="${id}"><option value="">選択してください</option><option value="A">A型</option><option value="B">B型</option><option value="O">O型</option><option value="AB">AB型</option></select>`;
+  } else if (kind === 'marital') {
+    input = `<select id="${id}"><option value="">選択してください</option><option value="single">独身</option><option value="married">既婚</option><option value="divorced">離婚</option><option value="widowed">死別</option></select>`;
+  } else if (kind === 'date') {
+    input = `<input type="date" id="${id}">`;
+  } else {
+    input = `<input type="text" id="${id}" maxlength="${kind === 'rel' ? 20 : 30}">`;
+  }
+  return `<div class="karte-field"><div class="k-label">${label}</div>${input}</div>`;
+}
+
+function karteSectionFields(partner) {
+  const f = [
+    ['name', 'お名前（ニックネーム可）', 'text'],
+    ['furigana', 'ふりがな', 'text'],
+    ['gender', '性別', 'gender'],
+    ['birthDate', '生年月日', 'date'],
+    ['birthTime', '出生時間（わかる方）', 'text'],
+    ['birthPlace', '出生地（市町村まで）', 'text'],
+    ['bloodType', '血液型', 'blood'],
+    ['maritalStatus', '婚姻状態', 'marital']
+  ];
+  if (partner) f.push(['relationship', '関係性（恋人、配偶者など）', 'rel']);
+  return f;
+}
+
+(function renderKarteForm() {
+  let html = '';
+  KARTE_SECTIONS.forEach(s => {
+    html += `<div class="karte-section">${s.title}</div>`;
+    karteSectionFields(s.partner).forEach(([key, label, kind]) => {
+      html += karteFieldHtml(s.prefix, key, label, kind);
+    });
+  });
+  $('karteForm').innerHTML = html;
+})();
+
+function fillKarteSection(prefix, data) {
+  karteSectionFields(prefix !== 'self').forEach(([key]) => {
+    const el = $(`k_${prefix}_${key}`);
+    if (el) el.value = (data && data[key]) || '';
+  });
+}
+
+function collectKarteSection(prefix) {
+  const out = {};
+  karteSectionFields(prefix !== 'self').forEach(([key]) => {
+    out[key] = ($(`k_${prefix}_${key}`).value || '').trim();
+  });
+  return out;
+}
+
+async function openKarteEdit() {
+  if (!currentUser) { openModal('loginModal'); return; }
+  $('karteMsg').textContent = '';
+  openModal('karteModal');
+  try {
+    const doc = await db.collection('kartes').doc(currentUser.uid).get();
+    const k = doc.exists ? doc.data() : {};
+    fillKarteSection('self', k);
+    fillKarteSection('p1', k.partner1);
+    fillKarteSection('p2', k.partner2);
+  } catch (e) {
+    console.error('カルテ読み込みエラー:', e);
+    $('karteMsg').textContent = '読み込みに失敗しました';
+    $('karteMsg').className = 'modal-msg error';
+  }
+}
+
+async function saveKarte() {
+  if (!currentUser) return;
+  const btn = $('karteSaveBtn');
+  btn.disabled = true;
+  try {
+    const data = collectKarteSection('self');
+    data.clientId = currentUser.uid;
+    data.partner1 = collectKarteSection('p1');
+    data.partner2 = collectKarteSection('p2');
+    data.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+    await db.collection('kartes').doc(currentUser.uid).set(data, { merge: true });
+    $('karteMsg').textContent = '保存しました！';
+    $('karteMsg').className = 'modal-msg success';
+    toast('カルテを保存しました');
+  } catch (e) {
+    console.error('カルテ保存エラー:', e);
+    $('karteMsg').textContent = '保存に失敗しました';
+    $('karteMsg').className = 'modal-msg error';
+  }
+  btn.disabled = false;
 }
 
 // ===== 購入リンク =====
