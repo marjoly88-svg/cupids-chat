@@ -374,7 +374,12 @@ const db = firebase.firestore();
 const functions = firebase.app().functions(CUPIDS.region);
 const RATE = CUPIDS.rate;
 
-const QUICK_REPLIES = ["視てみますね", "今日はどうされましたか？", "こんばんは", "少々お待ちくださいね"];
+const QUICK_REPLIES = [
+  "視てみますね",
+  "それも視てみますね",
+  "鑑定依頼ありがとうございました。又不安な事やお困りの際はいつでもいらして下さいね",
+  "よろしくお願いします！本日はいかがされましたか？ご相談内容をお話ししてくださいね✨"
+];
 
 let tellerId = null;
 let tellerDoc = null;      // fortuneTellers の中身
