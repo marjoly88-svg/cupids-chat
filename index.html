@@ -123,6 +123,11 @@
   .badge-pt { background: var(--gold-bg); color: var(--gold); font-weight: 700; padding: 0 7px; border-radius: 999px; }
   .badge-free { background: var(--free-bg); color: var(--free); border: 1px solid var(--free); font-weight: 700; padding: 0 7px; border-radius: 999px; }
   .msg-system { align-self: center; font-size: 11px; color: var(--muted); background: var(--white); border: 1px solid var(--line); padding: 4px 12px; border-radius: 999px; }
+  /* 先生の発言には顔写真アイコンを添える */
+  .other-wrap { display: flex; gap: 8px; align-items: flex-end; align-self: flex-start; max-width: 88%; }
+  .other-wrap .msg { max-width: 100%; align-self: auto; }
+  .msg-avatar { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 1px solid var(--line); background: var(--bg); }
+  .msg-avatar-fb { display: flex; align-items: center; justify-content: center; background: var(--rose); color: #fff; font-size: 12px; font-weight: 700; border: none; }
   @keyframes pop { from { transform: translateY(4px); opacity: 0; } to { transform: none; opacity: 1; } }
   @media (prefers-reduced-motion: reduce) { .msg-bubble { animation: none; } }
 
@@ -636,7 +641,27 @@ function renderMessages(snap) {
 
     wrap.appendChild(meta);
     wrap.appendChild(bubble);
-    box.appendChild(wrap);
+
+    if (mine) {
+      box.appendChild(wrap);
+    } else {
+      // 先生の発言は顔写真アイコン付きで表示（読み込めない場合は「南」の丸）
+      const row = document.createElement('div');
+      row.className = 'other-wrap';
+      const av = document.createElement('img');
+      av.className = 'msg-avatar';
+      av.alt = '';
+      av.src = tellerData.imageUrl || '';
+      av.onerror = () => {
+        const fb = document.createElement('div');
+        fb.className = 'msg-avatar msg-avatar-fb';
+        fb.textContent = '南';
+        av.replaceWith(fb);
+      };
+      row.appendChild(av);
+      row.appendChild(wrap);
+      box.appendChild(row);
+    }
   });
 
   box.scrollTop = box.scrollHeight;

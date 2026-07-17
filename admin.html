@@ -295,7 +295,9 @@
       <div class="chat-header">
         <button class="back" onclick="closeSevenChat()">←</button>
         <b id="sevenClientName"></b>
-        <span style="margin-left:auto; font-size:10px; color:var(--muted);">100文字チャット</span>
+        <button class="memo-btn" onclick="openSevenKarte()">カルテ</button>
+        <button class="memo-btn" onclick="openSevenMemo()">メモ</button>
+        <span style="margin-left:auto; font-size:10px; color:var(--muted);">100文字</span>
       </div>
       <div class="ended-note" id="sevenTurnNote" style="display:none;">お客様の返信待ちです（1往復制のため、次のメッセージが届くまで返信できません）</div>
       <div id="sevenMsgList" style="flex:1; overflow-y:auto; padding:14px 12px; display:flex; flex-direction:column; gap:11px;"></div>
@@ -611,6 +613,43 @@ let sevenSending = false;
 
 function sevenHasNew(c) { return c.data.clientHasSent === true && c.data.fortuneTellerHasSent === false; }
 
+// 会話に名前や最終メッセージが無い場合に補完する（本家fortune-lobbyのhydrateと同じ方式）
+const sevenNameCache = {};     // clientId -> name
+const sevenLastMsgCache = {};  // convId -> { upd, text }
+
+function sevenName(c) { return c.data.clientName || sevenNameCache[c.data.clientId] || '匿名'; }
+function sevenLastText(c) {
+  return (c.data.lastMessage && c.data.lastMessage.text) || (sevenLastMsgCache[c.id] && sevenLastMsgCache[c.id].text) || '';
+}
+
+async function hydrateSeven() {
+  let changed = false;
+  for (const c of sevenConvs.slice(0, 30)) {
+    const d = c.data;
+    if (!d.clientName && d.clientId && sevenNameCache[d.clientId] === undefined) {
+      try {
+        const u = await db.collection('users').doc(d.clientId).get();
+        sevenNameCache[d.clientId] = (u.exists && u.data().name) || '匿名';
+      } catch (e) { sevenNameCache[d.clientId] = '匿名'; }
+      changed = true;
+    }
+    const upd = (d.updatedAt && d.updatedAt.toMillis) ? d.updatedAt.toMillis() : 0;
+    const cached = sevenLastMsgCache[c.id];
+    if (!(d.lastMessage && d.lastMessage.text) && (!cached || cached.upd !== upd)) {
+      try {
+        const ms = await db.collection('messages')
+          .where('conversationId', '==', c.id).orderBy('createdAt', 'desc').limit(1).get();
+        sevenLastMsgCache[c.id] = { upd: upd, text: ms.empty ? '' : (ms.docs[0].data().text || '') };
+      } catch (e) { sevenLastMsgCache[c.id] = { upd: upd, text: '' }; }
+      changed = true;
+    }
+  }
+  if (changed) {
+    renderSevenList();
+    if (currentSevenConv) $('sevenClientName').textContent = `${sevenName(currentSevenConv)} さま`;
+  }
+}
+
 function subscribeSevenConversations() {
   unsubSeven = db.collection('conversations')
     .where('fortuneTellerId', '==', tellerId)
@@ -625,6 +664,7 @@ function subscribeSevenConversations() {
       $('sevenUnreadCount').innerHTML = `${n}<small> 件</small>`;
       renderSevenList();
       if (currentSevenConv) renderSevenState();
+      hydrateSeven();
     }, err => {
       console.error('100文字チャット会話の購読エラー:', err);
       $('sevenUnreadCount').innerHTML = `-<small> 件</small>`;
@@ -641,14 +681,15 @@ function renderSevenList() {
   sevenConvs.forEach(c => {
     const d = c.data;
     const hasNew = sevenHasNew(c);
+    const name = sevenName(c);
     const btn = document.createElement('button');
     btn.className = 'conv-item' + (hasNew ? ' unread' : '');
     btn.onclick = () => openSevenChat(c.id);
     btn.innerHTML = `
-      <div class="avatar" style="background:var(--free);">${escapeHtml((d.clientName || '匿')[0])}</div>
+      <div class="avatar" style="background:var(--free);">${escapeHtml(name[0])}</div>
       <div class="conv-main">
-        <div class="conv-top"><b>${escapeHtml(d.clientName || '匿名')} さま</b><time>${fmtTime(d.updatedAt)}</time></div>
-        <div class="conv-last">${escapeHtml((d.lastMessage && d.lastMessage.text) || '')}</div>
+        <div class="conv-top"><b>${escapeHtml(name)} さま</b><time>${fmtTime(d.updatedAt)}</time></div>
+        <div class="conv-last">${escapeHtml(sevenLastText(c))}</div>
       </div>
       ${hasNew ? '<span class="unread-dot"></span>' : ''}`;
     list.appendChild(btn);
@@ -662,7 +703,7 @@ function openSevenChat(id) {
   ['home', 'chat', 'seven', 'standby'].forEach(t => { $('tab-' + t).style.display = 'none'; });
   $('chatDetail').style.display = 'none';
   $('sevenDetail').style.display = 'flex';
-  $('sevenClientName').textContent = `${c.data.clientName || '匿名'} さま`;
+  $('sevenClientName').textContent = `${sevenName(c)} さま`;
   renderSevenState();
 
   if (unsubSevenMsgs) unsubSevenMsgs();
@@ -1026,13 +1067,13 @@ function karteSection(title, d) {
     (title !== '相談者' ? karteRow('関係', d.relationship) : '');
 }
 
-async function openKarte() {
-  if (!currentConv) return;
-  $('karteTitle').textContent = `${currentConv.data.clientName || 'お客様'} さまのカルテ`;
+// 文字数チャット・100文字チャットどちらの会話からでも開けるよう、対象のお客さんを引数で受ける
+async function openKarteFor(clientId, clientName) {
+  $('karteTitle').textContent = `${clientName || 'お客様'} さまのカルテ`;
   $('karteBody').innerHTML = '<div style="color:var(--muted);">読み込み中…</div>';
   $('karteModal').classList.add('open');
   try {
-    const doc = await db.collection('kartes').doc(currentConv.data.clientId).get();
+    const doc = await db.collection('kartes').doc(clientId).get();
     if (!doc.exists) {
       $('karteBody').innerHTML = '<div style="color:var(--muted);">カルテはまだ記入されていません。</div>';
       return;
@@ -1048,21 +1089,25 @@ async function openKarte() {
   }
 }
 
+function openKarte() { if (currentConv) openKarteFor(currentConv.data.clientId, currentConv.data.clientName); }
+function openSevenKarte() { if (currentSevenConv) openKarteFor(currentSevenConv.data.clientId, sevenName(currentSevenConv)); }
+
 function closeKarte() { $('karteModal').classList.remove('open'); }
 document.getElementById('karteModal').addEventListener('click', (e) => {
   if (e.target === document.getElementById('karteModal')) closeKarte();
 });
 
 // ===== お客様メモ（電話サイトと共通形式: memos/{占い師uid}_{お客さんuid}・本文content） =====
-function memoDocId() { return `${tellerId}_${currentConv.data.clientId}`; }
+// 文字数・100文字どちらの会話からでも開けるよう、対象のお客さんを保持する
+let memoClient = null; // { clientId, clientName }
 
-async function openMemo() {
-  if (!currentConv) return;
-  $('memoTitle').textContent = `${currentConv.data.clientName || 'お客様'} さまのメモ`;
+async function openMemoFor(clientId, clientName) {
+  memoClient = { clientId: clientId, clientName: clientName || '' };
+  $('memoTitle').textContent = `${clientName || 'お客様'} さまのメモ`;
   $('memoField').value = '読み込み中…';
   $('memoModal').classList.add('open');
   try {
-    const doc = await db.collection('memos').doc(memoDocId()).get();
+    const doc = await db.collection('memos').doc(`${tellerId}_${clientId}`).get();
     $('memoField').value = (doc.exists && doc.data().content) || '';
   } catch (e) {
     console.error('メモ読み込みエラー:', e);
@@ -1071,20 +1116,23 @@ async function openMemo() {
   }
 }
 
+function openMemo() { if (currentConv) openMemoFor(currentConv.data.clientId, currentConv.data.clientName); }
+function openSevenMemo() { if (currentSevenConv) openMemoFor(currentSevenConv.data.clientId, sevenName(currentSevenConv)); }
+
 function closeMemo() { $('memoModal').classList.remove('open'); }
 document.getElementById('memoModal').addEventListener('click', (e) => {
   if (e.target === document.getElementById('memoModal')) closeMemo();
 });
 
 async function saveMemo() {
-  if (!currentConv) return;
+  if (!memoClient) return;
   const btn = $('memoSaveBtn');
   btn.disabled = true;
   try {
-    await db.collection('memos').doc(memoDocId()).set({
+    await db.collection('memos').doc(`${tellerId}_${memoClient.clientId}`).set({
       fortuneTellerId: tellerId,
-      clientId: currentConv.data.clientId,
-      clientName: currentConv.data.clientName || '',
+      clientId: memoClient.clientId,
+      clientName: memoClient.clientName || '',
       content: $('memoField').value,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     }, { merge: true });
