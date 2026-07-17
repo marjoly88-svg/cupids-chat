@@ -504,17 +504,11 @@ auth.onAuthStateChanged(user => {
     $('menuBtn').style.display = 'block';
     subscribeUser();
     subscribeConversation();
-    // チャット画面への自動移動は「開いた直後」と「ログインした直後」だけ。
-    // ただしリロード時は直前に見ていた画面を維持する（トップを見ていたならトップのまま）
-    if (hadUser === null || hadUser === false) {
-      if (hadUser === null && localStorage.getItem('mojiView') === 'top') {
-        $('authView').style.display = 'block';
-        $('chatView').style.display = 'none';
-      } else {
-        $('authView').style.display = 'none';
-        $('chatView').style.display = 'flex';
-        localStorage.setItem('mojiView', 'chat');
-      }
+    // 自動でチャットルームへは移動しない。開いたとき・リロード時は常にトップページ。
+    // チャットルームへ入るのは「相談ルームへ戻る」を押したときと、いまログイン操作をした直後だけ
+    if (hadUser === false) {
+      $('authView').style.display = 'none';
+      $('chatView').style.display = 'flex';
     }
   } else {
     $('authView').style.display = 'block';
@@ -821,7 +815,6 @@ function goTop() {
   closeModal('menuModal');
   $('chatView').style.display = 'none';
   $('authView').style.display = 'block';
-  localStorage.setItem('mojiView', 'top'); // リロードしてもトップのままにする
   updateTopButtons();
   window.scrollTo(0, 0);
 }
@@ -830,7 +823,6 @@ function openChatView() {
   if (!currentUser) { openModal('loginModal'); return; }
   $('authView').style.display = 'none';
   $('chatView').style.display = 'flex';
-  localStorage.setItem('mojiView', 'chat');
 }
 
 function updateTopButtons() {
