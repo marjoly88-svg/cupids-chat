@@ -491,6 +491,7 @@ db.collection('fortuneTellers').doc(TELLER.id).onSnapshot(doc => {
 });
 
 // ===== 認証 =====
+let hadUser = null; // null=初回判定前。トップ閲覧中に勝手にチャットへ飛ばないための状態管理
 auth.onAuthStateChanged(user => {
   currentUser = user;
   if (unsubUser) { unsubUser(); unsubUser = null; }
@@ -500,17 +501,22 @@ auth.onAuthStateChanged(user => {
   if (user) {
     closeModal('loginModal');
     closeModal('signupModal');
-    $('authView').style.display = 'none';
-    $('chatView').style.display = 'flex';
     $('menuBtn').style.display = 'block';
     subscribeUser();
     subscribeConversation();
+    // チャット画面への自動移動は「開いた直後」と「ログインした直後」だけ。
+    // トップページを見ている最中の認証イベントでは画面を切り替えない
+    if (hadUser === null || hadUser === false) {
+      $('authView').style.display = 'none';
+      $('chatView').style.display = 'flex';
+    }
   } else {
     $('authView').style.display = 'block';
     $('chatView').style.display = 'none';
     $('menuBtn').style.display = 'none';
     conv = null; convExists = false;
   }
+  hadUser = !!user;
   updateTopButtons();
 });
 
