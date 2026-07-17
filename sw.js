@@ -24,15 +24,18 @@ messaging.onBackgroundMessage((payload) => {
   });
 });
 
-// 通知タップ → 管理アプリを開く（既に開いていればそこへ）
+// 通知タップ → 通知が指すページを開く（既に開いていればそこへ）
+// 文字数チャット=admin.html / 100文字チャット=cupids-sevenのロビー（data.urlで指定）
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || './admin.html';
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
       for (const c of list) {
-        if (c.url.includes('admin.html') && 'focus' in c) return c.focus();
+        if (c.url === url && 'focus' in c) return c.focus();
+        if (url.includes('admin.html') && c.url.includes('admin.html') && 'focus' in c) return c.focus();
       }
-      return clients.openWindow('./admin.html');
+      return clients.openWindow(url);
     })
   );
 });
