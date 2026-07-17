@@ -175,6 +175,14 @@
   .btn-send:disabled { background: var(--line); }
   .over-note { font-size: 12px; font-weight: 700; color: var(--danger); padding: 0 4px; }
 
+  /* ===== フッター ===== */
+  .site-footer { margin-top: 34px; padding-top: 18px; border-top: 1px solid var(--line); text-align: center; }
+  .footer-sites { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+  .footer-sites a { color: var(--rose); text-decoration: none; font-weight: 700; font-size: 13px; }
+  .footer-links { font-size: 11px; color: var(--muted); line-height: 2.2; }
+  .footer-links a, .footer-links button { color: var(--muted); text-decoration: underline; font-size: 11px; padding: 0; }
+  .footer-copy { font-size: 10px; color: var(--muted); margin-top: 10px; }
+
   /* ===== モーダル ===== */
   .modal-overlay {
     display: none; position: fixed; inset: 0; background: rgba(58, 46, 51, .5);
@@ -276,6 +284,24 @@
   <p style="text-align:center; font-size:12px; color:var(--muted); margin-top:14px;">
     電話占いキューピッズの会員情報・ポイントがそのまま使えます
   </p>
+
+  <footer class="site-footer">
+    <div class="footer-sites">
+      <a href="https://cupids-denwa.vercel.app/" target="_blank" rel="noopener">電話占いキューピッズはこちら</a>
+      <a href="https://cupids-seven.vercel.app/index.html" target="_blank" rel="noopener">100文字チャット占いはこちら</a>
+    </div>
+    <div class="footer-links">
+      サイトマップ｜
+      <button onclick="openModal('signupModal')">新規登録</button>｜
+      <button onclick="openModal('loginModal')">ログイン</button>｜
+      <button onclick="openModal('chargeModal')">ポイント購入</button>｜
+      <a href="https://cupids-seven.vercel.app/privacy.html" target="_blank" rel="noopener">サイトポリシー</a>｜
+      <a href="https://cupids-seven.vercel.app/terms.html" target="_blank" rel="noopener">利用規約</a>｜
+      <a href="https://cupids-seven.vercel.app/legal.html" target="_blank" rel="noopener">特定商取引法</a>｜
+      <a href="mailto:qpizzu88@gmail.com">お問い合わせ</a>
+    </div>
+    <div class="footer-copy">© 2026 Cupids Chat. All rights reserved.</div>
+  </footer>
 </div>
 
 <!-- ===== チャット画面（ログイン後） ===== -->
