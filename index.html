@@ -52,6 +52,27 @@
 
   /* ===== ランディング ===== */
   #authView { max-width: 480px; margin: 0 auto; padding: 20px 16px 40px; }
+
+  /* バナーカルーセル */
+  .banner-carousel { margin-bottom: 6px; }
+  .banner-track {
+    display: flex; gap: 10px; overflow-x: auto;
+    scroll-snap-type: x mandatory; scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .banner-track::-webkit-scrollbar { display: none; }
+  .banner {
+    flex: 0 0 100%; scroll-snap-align: center;
+    border-radius: 16px; padding: 24px 18px; color: #fff;
+    text-align: center; text-decoration: none; display: block;
+    box-shadow: 0 2px 10px rgba(180, 69, 106, .15); cursor: pointer;
+  }
+  .banner .b-title { font-family: 'Shippori Mincho', serif; font-size: 19px; font-weight: 600; letter-spacing: .04em; }
+  .banner .b-sub { font-size: 12px; opacity: .92; margin-top: 6px; }
+  .banner img { width: 100%; border-radius: 16px; display: block; }
+  .banner-dots { display: flex; justify-content: center; gap: 7px; margin-top: 9px; }
+  .banner-dots span { width: 7px; height: 7px; border-radius: 50%; background: var(--line); transition: background .2s; }
+  .banner-dots span.on { background: var(--rose); }
   .hero { text-align: center; padding: 18px 0 6px; }
   .hero h1 { font-size: 22px; font-weight: 700; line-height: 1.5; }
   .hero p { color: var(--muted); font-size: 13px; margin-top: 8px; line-height: 1.8; }
@@ -247,6 +268,11 @@
 
 <!-- ===== ランディング（未ログイン） ===== -->
 <div id="authView">
+  <div class="banner-carousel" id="bannerCarousel" style="display:none;">
+    <div class="banner-track" id="bannerTrack"></div>
+    <div class="banner-dots" id="bannerDots"></div>
+  </div>
+
   <div class="hero">
     <h1>文字数制チャット占い</h1>
     <p>1文字6ptの１文字毎課金だから、上限なし。<br>あなたのペースで、深いところまで。</p>
@@ -435,7 +461,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-functions-compat.js"></script>
-<script src="config.js"></script>
+<script src="config.js?v=banner1"></script>
 <script>
 firebase.initializeApp(CUPIDS.firebase);
 const auth = firebase.auth();
@@ -964,6 +990,71 @@ async function saveKarte() {
   }
   btn.disabled = false;
 }
+
+// ===== バナーカルーセル（config.jsのbannersから生成・5秒ごとに自動送り） =====
+(function renderBanners() {
+  const banners = CUPIDS.banners || [];
+  if (!banners.length) return;
+  const track = $('bannerTrack');
+  const dots = $('bannerDots');
+
+  banners.forEach((b, i) => {
+    const a = document.createElement('a');
+    a.className = 'banner';
+    if (b.url === '#charge') {
+      a.onclick = (e) => { e.preventDefault(); openModal('chargeModal'); };
+      a.href = '#';
+    } else {
+      a.href = b.url;
+      a.target = '_blank';
+      a.rel = 'noopener';
+    }
+    if (b.img) {
+      a.style.padding = '0';
+      a.innerHTML = `<img src="${b.img}" alt="${b.title || ''}">`;
+    } else {
+      a.style.background = b.bg || 'var(--rose)';
+      a.innerHTML = `<div class="b-title">${b.title}</div><div class="b-sub">${b.sub || ''}</div>`;
+    }
+    track.appendChild(a);
+
+    const dot = document.createElement('span');
+    if (i === 0) dot.className = 'on';
+    dots.appendChild(dot);
+  });
+
+  $('bannerCarousel').style.display = 'block';
+  if (banners.length < 2) { dots.style.display = 'none'; return; }
+
+  let idx = 0;
+  let pauseUntil = 0;
+
+  const GAP = 10; // .banner-track の gap と合わせる
+  function syncDots() {
+    dots.querySelectorAll('span').forEach((d, j) => d.classList.toggle('on', j === idx));
+  }
+  function goTo(i) {
+    idx = (i + banners.length) % banners.length;
+    track.scrollTo({ left: idx * (track.clientWidth + GAP), behavior: 'smooth' });
+    syncDots();
+  }
+
+  // 手でスワイプしたらドットを同期して、しばらく自動送りを止める
+  track.addEventListener('scroll', () => {
+    const i = Math.round(track.scrollLeft / (track.clientWidth + GAP));
+    if (i !== idx && i >= 0 && i < banners.length) {
+      idx = i;
+    }
+    syncDots();
+  }, { passive: true });
+  track.addEventListener('touchstart', () => { pauseUntil = Date.now() + 10000; }, { passive: true });
+
+  setInterval(() => {
+    if (Date.now() < pauseUntil) return;
+    if ($('authView').style.display === 'none') return; // トップページ表示中だけ回す
+    goTo(idx + 1);
+  }, 5000);
+})();
 
 // ===== 購入リンク =====
 (function renderPurchaseLinks() {

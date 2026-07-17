@@ -26,6 +26,30 @@ const CUPIDS = {
 
   replyEtaText: "通常24時間以内にお返事します",
 
+  // トップページのバナー（1件追加すればカルーセルに自動で増える）
+  // img を指定すると画像バナーに、無ければ title/sub のデザインバナーになる
+  // url が "#charge" ならチャージ画面を開く
+  banners: [
+    {
+      title: "電話占いキューピッズ",
+      sub: "みなみと直接話せる電話鑑定",
+      url: "https://cupids-denwa.vercel.app/",
+      bg: "linear-gradient(135deg, #B4456A, #E967A5)"
+    },
+    {
+      title: "1往復100文字チャット占い",
+      sub: "100文字×1往復800円の安心チャット",
+      url: "https://cupids-seven.vercel.app/index.html",
+      bg: "linear-gradient(135deg, #4E9B8F, #7CC5B9)"
+    },
+    {
+      title: "ポイント購入はこちら",
+      sub: "¥800から・3サイト共通で使えます",
+      url: "#charge",
+      bg: "linear-gradient(135deg, #B8923E, #D9B76A)"
+    }
+  ],
+
   // お客さんが無料で送れる定型あいさつ（サーバー側 mojiChat.js の CLIENT_FREE_TEMPLATES と必ず一致させること）
   clientFreeTemplates: ["よろしくお願いします", "ありがとうございました", "こんばんは", "こんにちは", "わかりました"],
 
