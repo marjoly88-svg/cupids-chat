@@ -259,10 +259,10 @@
         <div class="card-label">未返信（文字数チャット）</div>
         <div class="big-pt" style="color:var(--ink); font-size:26px;" id="unreadCount">-<small> 件</small></div>
       </div>
-      <div class="card" style="cursor:pointer;" onclick="window.open('https://cupids-seven.vercel.app/fortune-lobby.html', '_blank')">
+      <div class="card" style="cursor:pointer;" onclick="showTab('seven')">
         <div class="card-label">未返信（100文字チャット）</div>
         <div class="big-pt" style="color:var(--ink); font-size:26px;" id="sevenUnreadCount">-<small> 件</small></div>
-        <div style="font-size:11px; color:var(--muted); margin-top:4px;">タップで100文字チャットの管理画面を開く</div>
+        <div style="font-size:11px; color:var(--muted); margin-top:4px;">タップで100文字チャットを開く</div>
       </div>
       <div class="card">
         <div class="card-label" style="color:var(--rose); font-weight:700; margin-bottom:6px;">プッシュ通知</div>
@@ -279,6 +279,35 @@
     <!-- チャット一覧 -->
     <div id="tab-chat" style="display:none;">
       <div id="convList"></div>
+    </div>
+
+    <!-- 100文字チャット一覧 -->
+    <div id="tab-seven" style="display:none;">
+      <div style="padding:9px 16px; font-size:11px; color:var(--muted); border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center;">
+        <span>100文字チャット（1往復制）</span>
+        <a href="https://cupids-seven.vercel.app/fortune-lobby.html" target="_blank" rel="noopener" style="color:var(--rose); text-decoration:underline;">サイトで開く</a>
+      </div>
+      <div id="sevenConvList"></div>
+    </div>
+
+    <!-- 100文字チャット会話画面 -->
+    <div id="sevenDetail" style="display:none; flex-direction:column; height:100%;">
+      <div class="chat-header">
+        <button class="back" onclick="closeSevenChat()">←</button>
+        <b id="sevenClientName"></b>
+        <span style="margin-left:auto; font-size:10px; color:var(--muted);">100文字チャット</span>
+      </div>
+      <div class="ended-note" id="sevenTurnNote" style="display:none;">お客様の返信待ちです（1往復制のため、次のメッセージが届くまで返信できません）</div>
+      <div id="sevenMsgList" style="flex:1; overflow-y:auto; padding:14px 12px; display:flex; flex-direction:column; gap:11px;"></div>
+      <div class="composer" id="sevenComposer">
+        <div class="composer-box" id="sevenComposerBox">
+          <div class="composer-info" id="sevenInfo"></div>
+          <textarea id="sevenInput" rows="2" maxlength="100" placeholder="返信を入力…（100文字まで）"></textarea>
+          <div class="composer-actions">
+            <button class="btn-send-text" id="sevenSendBtn" disabled>送信</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- 会話画面 -->
@@ -351,7 +380,7 @@
       <svg width="22" height="22" viewBox="0 0 24 24"><path d="M4.5 4.5 H19.5 V15.5 H9.5 L4.5 19.5 V4.5 Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
       <span>文字数</span>
     </button>
-    <button id="nav-seven" onclick="window.open('https://cupids-seven.vercel.app/fortune-lobby.html', '_blank')">
+    <button id="nav-seven" onclick="showTab('seven')">
       <svg width="22" height="22" viewBox="0 0 24 24"><path d="M4.5 4.5 H19.5 V15.5 H9.5 L4.5 19.5 V4.5 Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><text x="12" y="12.5" text-anchor="middle" font-size="6.5" font-weight="bold" fill="currentColor">100</text></svg>
       <span>100文字</span>
       <span class="nav-badge" id="sevenBadge"></span>
@@ -435,6 +464,7 @@ auth.onAuthStateChanged(async (user) => {
   if (unsubConvs) { unsubConvs(); unsubConvs = null; }
   if (unsubSeven) { unsubSeven(); unsubSeven = null; }
   closeChat();
+  closeSevenChat();
 
   if (!user) {
     $('loginView').style.display = 'block';
@@ -481,8 +511,9 @@ async function doLogout() {
 // ===== タブ =====
 function showTab(name) {
   closeChat();
-  ['home', 'chat', 'standby'].forEach(t => {
-    $('tab-' + t).style.display = (t === name) ? (t === 'chat' ? 'block' : 'flex') : 'none';
+  closeSevenChat();
+  ['home', 'chat', 'seven', 'standby'].forEach(t => {
+    $('tab-' + t).style.display = (t === name) ? ((t === 'chat' || t === 'seven') ? 'block' : 'flex') : 'none';
     $('nav-' + t).classList.toggle('active', t === name);
   });
   if (name === 'home') loadTodayStats();
@@ -571,25 +602,163 @@ function subscribeConversations() {
     }, err => console.error('会話リスト購読エラー:', err));
 }
 
-// ===== 100文字チャット(cupids-seven)の未返信を監視（読み取りのみ） =====
+// ===== 100文字チャット(cupids-seven)をアプリ内で一覧・返信 =====
 // 返信待ち判定はロビーと同じ: clientHasSent===true && fortuneTellerHasSent===false
+let sevenConvs = [];
+let currentSevenConv = null;
+let unsubSevenMsgs = null;
+let sevenSending = false;
+
+function sevenHasNew(c) { return c.data.clientHasSent === true && c.data.fortuneTellerHasSent === false; }
+
 function subscribeSevenConversations() {
   unsubSeven = db.collection('conversations')
     .where('fortuneTellerId', '==', tellerId)
     .orderBy('updatedAt', 'desc')
     .limit(100)
     .onSnapshot(snap => {
-      const n = snap.docs.filter(d =>
-        d.data().clientHasSent === true && d.data().fortuneTellerHasSent === false
-      ).length;
+      sevenConvs = snap.docs.map(d => ({ id: d.id, data: d.data() }));
+      const n = sevenConvs.filter(sevenHasNew).length;
       const badge = $('sevenBadge');
       badge.style.display = n > 0 ? 'flex' : 'none';
       badge.textContent = n > 99 ? '99+' : n;
       $('sevenUnreadCount').innerHTML = `${n}<small> 件</small>`;
+      renderSevenList();
+      if (currentSevenConv) renderSevenState();
     }, err => {
       console.error('100文字チャット会話の購読エラー:', err);
       $('sevenUnreadCount').innerHTML = `-<small> 件</small>`;
     });
+}
+
+function renderSevenList() {
+  const list = $('sevenConvList');
+  list.innerHTML = '';
+  if (!sevenConvs.length) {
+    list.innerHTML = '<div class="list-empty">まだ相談はありません。</div>';
+    return;
+  }
+  sevenConvs.forEach(c => {
+    const d = c.data;
+    const hasNew = sevenHasNew(c);
+    const btn = document.createElement('button');
+    btn.className = 'conv-item' + (hasNew ? ' unread' : '');
+    btn.onclick = () => openSevenChat(c.id);
+    btn.innerHTML = `
+      <div class="avatar" style="background:var(--free);">${escapeHtml((d.clientName || '匿')[0])}</div>
+      <div class="conv-main">
+        <div class="conv-top"><b>${escapeHtml(d.clientName || '匿名')} さま</b><time>${fmtTime(d.updatedAt)}</time></div>
+        <div class="conv-last">${escapeHtml((d.lastMessage && d.lastMessage.text) || '')}</div>
+      </div>
+      ${hasNew ? '<span class="unread-dot"></span>' : ''}`;
+    list.appendChild(btn);
+  });
+}
+
+function openSevenChat(id) {
+  const c = sevenConvs.find(x => x.id === id);
+  if (!c) return;
+  currentSevenConv = c;
+  ['home', 'chat', 'seven', 'standby'].forEach(t => { $('tab-' + t).style.display = 'none'; });
+  $('chatDetail').style.display = 'none';
+  $('sevenDetail').style.display = 'flex';
+  $('sevenClientName').textContent = `${c.data.clientName || '匿名'} さま`;
+  renderSevenState();
+
+  if (unsubSevenMsgs) unsubSevenMsgs();
+  unsubSevenMsgs = db.collection('messages')
+    .where('conversationId', '==', id)
+    .orderBy('createdAt', 'asc')
+    .onSnapshot(snap => renderSevenMessages(snap), err => console.error('100文字メッセージ購読エラー:', err));
+}
+
+function closeSevenChat() {
+  if (unsubSevenMsgs) { unsubSevenMsgs(); unsubSevenMsgs = null; }
+  if (!currentSevenConv) return;
+  currentSevenConv = null;
+  $('sevenDetail').style.display = 'none';
+  $('tab-seven').style.display = 'block';
+  ['home', 'chat', 'standby'].forEach(t => { $('tab-' + t).style.display = 'none'; $('nav-' + t).classList.remove('active'); });
+  $('nav-seven').classList.add('active');
+}
+
+function renderSevenState() {
+  const latest = sevenConvs.find(x => x.id === (currentSevenConv && currentSevenConv.id));
+  if (latest) currentSevenConv = latest;
+  const myTurn = currentSevenConv && sevenHasNew(currentSevenConv);
+  $('sevenTurnNote').style.display = myTurn ? 'none' : 'block';
+  $('sevenComposer').style.display = myTurn ? 'block' : 'none';
+  updateSevenComposer();
+}
+
+function renderSevenMessages(snap) {
+  const box = $('sevenMsgList');
+  box.innerHTML = '';
+  snap.forEach(doc => {
+    const m = doc.data();
+    const mine = m.senderId === tellerId;
+    const wrap = document.createElement('div');
+    wrap.className = 'msg ' + (mine ? 'me' : 'other');
+    wrap.innerHTML = `<div class="msg-meta"><span>${fmtTime(m.createdAt)}</span></div>`;
+    const bubble = document.createElement('div');
+    bubble.className = 'msg-bubble';
+    bubble.textContent = m.text;
+    wrap.appendChild(bubble);
+    box.appendChild(wrap);
+  });
+  box.scrollTop = box.scrollHeight;
+}
+
+function updateSevenComposer() {
+  const inp = $('sevenInput');
+  const len = inp.value.length;
+  $('sevenInfo').textContent = `${len} / 100文字`;
+  $('sevenInfo').className = 'composer-info' + (len >= 100 ? ' over' : '');
+  $('sevenSendBtn').disabled = sevenSending || !inp.value.trim() || len > 100;
+}
+$('sevenInput').addEventListener('input', updateSevenComposer);
+$('sevenSendBtn').addEventListener('click', sendSevenMessage);
+
+// 本家 fortune-chat.html の送信処理を忠実に再現
+// （メッセージ追加 → 往復フラグ更新 → 報酬カウント加算）
+async function sendSevenMessage() {
+  if (!currentSevenConv || sevenSending) return;
+  const text = $('sevenInput').value.trim();
+  if (!text || text.length > 100) return;
+  sevenSending = true;
+  updateSevenComposer();
+  try {
+    await db.collection('messages').add({
+      conversationId: currentSevenConv.id,
+      senderId: tellerId,
+      text: text,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    await db.collection('conversations').doc(currentSevenConv.id).update({
+      fortuneTellerHasSent: true,
+      clientHasSent: false,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    try {
+      const price = (tellerDoc && tellerDoc.regularPrice) || 800;
+      await db.collection('fortuneTellers').doc(tellerId).update({
+        consultationCount: firebase.firestore.FieldValue.increment(1),
+        currentMonthConsultationCount: firebase.firestore.FieldValue.increment(1),
+        currentMonthSales: firebase.firestore.FieldValue.increment(price),
+        lastConsultationAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    } catch (e) {
+      console.error('返信数更新エラー:', e);
+    }
+    $('sevenInput').value = '';
+    toast('返信を送信しました');
+  } catch (e) {
+    console.error('100文字送信エラー:', e);
+    toast('送信に失敗しました（お客様の返信待ちの状態の可能性があります）');
+  } finally {
+    sevenSending = false;
+    updateSevenComposer();
+  }
 }
 
 function fmtTime(ts) {
