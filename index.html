@@ -626,9 +626,8 @@ function renderMessages(snap) {
     const meta = document.createElement('div');
     meta.className = 'msg-meta';
     const who = mine ? '' : `<span>${tellerData.name || TELLER.name}</span>`;
-    const badge = m.paid
-      ? `<span class="badge-pt">${(m.cost || 0).toLocaleString()}pt</span>`
-      : `<span class="badge-free">無料</span>`;
+    // 消費ポイントはお客さんには表示しない（無料バッジのみ表示）
+    const badge = m.paid ? '' : `<span class="badge-free">無料</span>`;
     meta.innerHTML = `${who}<span>${fmtTime(m.createdAt)}</span>${badge}`;
 
     const bubble = document.createElement('div');
