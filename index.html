@@ -505,10 +505,16 @@ auth.onAuthStateChanged(user => {
     subscribeUser();
     subscribeConversation();
     // チャット画面への自動移動は「開いた直後」と「ログインした直後」だけ。
-    // トップページを見ている最中の認証イベントでは画面を切り替えない
+    // ただしリロード時は直前に見ていた画面を維持する（トップを見ていたならトップのまま）
     if (hadUser === null || hadUser === false) {
-      $('authView').style.display = 'none';
-      $('chatView').style.display = 'flex';
+      if (hadUser === null && localStorage.getItem('mojiView') === 'top') {
+        $('authView').style.display = 'block';
+        $('chatView').style.display = 'none';
+      } else {
+        $('authView').style.display = 'none';
+        $('chatView').style.display = 'flex';
+        localStorage.setItem('mojiView', 'chat');
+      }
     }
   } else {
     $('authView').style.display = 'block';
@@ -815,6 +821,7 @@ function goTop() {
   closeModal('menuModal');
   $('chatView').style.display = 'none';
   $('authView').style.display = 'block';
+  localStorage.setItem('mojiView', 'top'); // リロードしてもトップのままにする
   updateTopButtons();
   window.scrollTo(0, 0);
 }
@@ -823,6 +830,7 @@ function openChatView() {
   if (!currentUser) { openModal('loginModal'); return; }
   $('authView').style.display = 'none';
   $('chatView').style.display = 'flex';
+  localStorage.setItem('mojiView', 'chat');
 }
 
 function updateTopButtons() {
