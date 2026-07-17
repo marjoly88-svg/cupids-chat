@@ -252,6 +252,10 @@
     <p>1文字6ptの１文字毎課金だから、上限なし。<br>あなたのペースで、深いところまで。</p>
   </div>
 
+  <div class="auth-buttons" id="backToChatWrap" style="display:none; margin-top:14px;">
+    <button class="btn btn-primary" onclick="openChatView()">相談ルームへ戻る</button>
+  </div>
+
   <div class="teller-card">
     <img id="tellerPhoto" class="teller-photo" src="minami.png" alt="みなみ先生"
          onerror="this.style.display='none'; document.getElementById('tellerPhotoFallback').style.display='flex';">
@@ -277,9 +281,6 @@
   <div class="auth-buttons" id="authButtons">
     <button class="btn btn-primary" onclick="openModal('loginModal')">ログインして相談する</button>
     <button class="btn btn-outline" onclick="openModal('signupModal')">新規会員登録（無料）</button>
-  </div>
-  <div class="auth-buttons" id="backToChatWrap" style="display:none;">
-    <button class="btn btn-primary" onclick="openChatView()">相談ルームへ戻る</button>
   </div>
   <p style="text-align:center; font-size:12px; color:var(--muted); margin-top:14px;">
     キューピッズの会員情報・ポイントがそのまま使えます
