@@ -61,9 +61,15 @@
     background: var(--white); border-top: 1px solid var(--line);
     display: flex; flex-shrink: 0; padding-bottom: env(safe-area-inset-bottom);
   }
-  nav button { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 0 6px; color: var(--muted); }
+  nav button { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 0 6px; color: var(--muted); position: relative; }
   nav button.active { color: var(--rose); }
   nav button span { font-size: 11px; font-weight: 700; }
+  .nav-badge {
+    display: none; position: absolute; top: 3px; left: calc(50% + 6px);
+    min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px;
+    background: var(--danger); color: #fff; font-size: 10px; font-weight: 700;
+    align-items: center; justify-content: center; line-height: 1;
+  }
 
   /* ===== ログイン ===== */
   #loginView { max-width: 400px; margin: 0 auto; padding: 60px 24px; }
@@ -250,8 +256,13 @@
         </div>
       </div>
       <div class="card">
-        <div class="card-label">未返信の相談</div>
+        <div class="card-label">未返信（文字数チャット）</div>
         <div class="big-pt" style="color:var(--ink); font-size:26px;" id="unreadCount">-<small> 件</small></div>
+      </div>
+      <div class="card" style="cursor:pointer;" onclick="window.open('https://cupids-seven.vercel.app/fortune-lobby.html', '_blank')">
+        <div class="card-label">未返信（100文字チャット）</div>
+        <div class="big-pt" style="color:var(--ink); font-size:26px;" id="sevenUnreadCount">-<small> 件</small></div>
+        <div style="font-size:11px; color:var(--muted); margin-top:4px;">タップで100文字チャットの管理画面を開く</div>
       </div>
       <div class="card">
         <div class="card-label" style="color:var(--rose); font-weight:700; margin-bottom:6px;">プッシュ通知</div>
@@ -343,6 +354,7 @@
     <button id="nav-seven" onclick="window.open('https://cupids-seven.vercel.app/fortune-lobby.html', '_blank')">
       <svg width="22" height="22" viewBox="0 0 24 24"><path d="M4.5 4.5 H19.5 V15.5 H9.5 L4.5 19.5 V4.5 Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><text x="12" y="12.5" text-anchor="middle" font-size="6.5" font-weight="bold" fill="currentColor">100</text></svg>
       <span>100文字</span>
+      <span class="nav-badge" id="sevenBadge"></span>
     </button>
     <button id="nav-standby" onclick="showTab('standby')">
       <svg width="22" height="22" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5 V12 L15 14.5"/></g></svg>
@@ -405,7 +417,7 @@ let currentConv = null;    // 開いている会話 {id, data}
 let clientBalance = 0;
 let paidMode = true;
 let sending = false;
-let unsubTeller = null, unsubConvs = null, unsubMsgs = null, unsubClient = null;
+let unsubTeller = null, unsubConvs = null, unsubMsgs = null, unsubClient = null, unsubSeven = null;
 
 const $ = (id) => document.getElementById(id);
 
@@ -421,6 +433,7 @@ function toast(text) {
 auth.onAuthStateChanged(async (user) => {
   if (unsubTeller) { unsubTeller(); unsubTeller = null; }
   if (unsubConvs) { unsubConvs(); unsubConvs = null; }
+  if (unsubSeven) { unsubSeven(); unsubSeven = null; }
   closeChat();
 
   if (!user) {
@@ -443,6 +456,7 @@ auth.onAuthStateChanged(async (user) => {
 
   subscribeTeller();
   subscribeConversations();
+  subscribeSevenConversations();
   loadTodayStats();
   updatePushStatus();
 });
@@ -555,6 +569,27 @@ function subscribeConversations() {
       const unread = conversations.filter(c => c.data.unreadByTeller === true).length;
       $('unreadCount').innerHTML = `${unread}<small> 件</small>`;
     }, err => console.error('会話リスト購読エラー:', err));
+}
+
+// ===== 100文字チャット(cupids-seven)の未返信を監視（読み取りのみ） =====
+// 返信待ち判定はロビーと同じ: clientHasSent===true && fortuneTellerHasSent===false
+function subscribeSevenConversations() {
+  unsubSeven = db.collection('conversations')
+    .where('fortuneTellerId', '==', tellerId)
+    .orderBy('updatedAt', 'desc')
+    .limit(100)
+    .onSnapshot(snap => {
+      const n = snap.docs.filter(d =>
+        d.data().clientHasSent === true && d.data().fortuneTellerHasSent === false
+      ).length;
+      const badge = $('sevenBadge');
+      badge.style.display = n > 0 ? 'flex' : 'none';
+      badge.textContent = n > 99 ? '99+' : n;
+      $('sevenUnreadCount').innerHTML = `${n}<small> 件</small>`;
+    }, err => {
+      console.error('100文字チャット会話の購読エラー:', err);
+      $('sevenUnreadCount').innerHTML = `-<small> 件</small>`;
+    });
 }
 
 function fmtTime(ts) {
