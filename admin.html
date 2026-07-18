@@ -647,7 +647,7 @@ async function hydrateSeven() {
   }
   if (changed) {
     renderSevenList();
-    if (currentSevenConv) $('sevenClientName').textContent = `${sevenName(currentSevenConv)} さま`;
+    if (currentSevenConv) $('sevenClientName').textContent = sevenName(currentSevenConv);
   }
 }
 
@@ -689,9 +689,8 @@ function renderSevenList() {
     btn.className = 'conv-item' + (hasNew ? ' unread' : '');
     btn.onclick = () => openSevenChat(c.id);
     btn.innerHTML = `
-      <div class="avatar" style="background:var(--free);">${escapeHtml(name[0])}</div>
       <div class="conv-main">
-        <div class="conv-top"><b>${escapeHtml(name)} さま</b><time>${fmtTime(d.updatedAt)}</time></div>
+        <div class="conv-top"><b>${escapeHtml(name)}</b><time>${fmtTime(d.updatedAt)}</time></div>
         <div class="conv-last">${escapeHtml(sevenLastText(c))}</div>
       </div>
       ${hasNew ? '<span class="unread-dot"></span>' : ''}`;
@@ -714,7 +713,7 @@ function openSevenChat(id) {
   ['home', 'chat', 'seven', 'standby'].forEach(t => { $('tab-' + t).style.display = 'none'; });
   $('chatDetail').style.display = 'none';
   $('sevenDetail').style.display = 'flex';
-  $('sevenClientName').textContent = `${sevenName(c)} さま`;
+  $('sevenClientName').textContent = sevenName(c);
   renderSevenState();
 
   if (unsubSevenMsgs) unsubSevenMsgs();
@@ -838,9 +837,8 @@ function renderConvList() {
     btn.className = 'conv-item' + (d.unreadByTeller ? ' unread' : '');
     btn.onclick = () => openChat(c.id);
     btn.innerHTML = `
-      <div class="avatar">${(d.clientName || 'お')[0]}</div>
       <div class="conv-main">
-        <div class="conv-top"><b>${escapeHtml(d.clientName || 'お客様')} さま</b><time>${fmtTime(d.lastMessageAt)}</time></div>
+        <div class="conv-top"><b>${escapeHtml(d.clientName || 'お客様')}</b><time>${fmtTime(d.lastMessageAt)}</time></div>
         <div class="conv-last">${escapeHtml(d.lastMessageText || '')}</div>
       </div>
       ${d.status === 'ended' ? '<span class="conv-ended">終了</span>' : ''}
@@ -863,7 +861,7 @@ function openChat(id) {
   $('tab-home').style.display = 'none';
   $('tab-standby').style.display = 'none';
   $('chatDetail').style.display = 'flex';
-  $('chatClientName').textContent = `${c.data.clientName || 'お客様'} さま`;
+  $('chatClientName').textContent = c.data.clientName || 'お客様';
 
   renderChatState();
 
@@ -1080,7 +1078,7 @@ function karteSection(title, d) {
 
 // 文字数チャット・100文字チャットどちらの会話からでも開けるよう、対象のお客さんを引数で受ける
 async function openKarteFor(clientId, clientName) {
-  $('karteTitle').textContent = `${clientName || 'お客様'} さまのカルテ`;
+  $('karteTitle').textContent = `${clientName || 'お客様'}のカルテ`;
   $('karteBody').innerHTML = '<div style="color:var(--muted);">読み込み中…</div>';
   $('karteModal').classList.add('open');
   try {
@@ -1114,7 +1112,7 @@ let memoClient = null; // { clientId, clientName }
 
 async function openMemoFor(clientId, clientName) {
   memoClient = { clientId: clientId, clientName: clientName || '' };
-  $('memoTitle').textContent = `${clientName || 'お客様'} さまのメモ`;
+  $('memoTitle').textContent = `${clientName || 'お客様'}のメモ`;
   $('memoField').value = '読み込み中…';
   $('memoModal').classList.add('open');
   try {
