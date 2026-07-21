@@ -264,7 +264,18 @@
         <div class="stat-line"><span>昨日</span><b id="statYesterday">-<small> pt</small></b></div>
         <div class="stat-line"><span>今週（日〜土）</span><b id="statWeek">-<small> pt</small></b></div>
         <div class="stat-line"><span>今月</span><b id="statMonth">-<small> pt</small></b></div>
+        <div class="stat-line"><span>先月</span><b id="statLastMonth">-<small> pt</small></b></div>
         <div style="font-size:11px; color:var(--muted); margin-top:8px;">お客様が使ったポイント（相談＋返信）の合計です</div>
+      </div>
+
+      <div class="card">
+        <div class="card-label" style="color:var(--free); font-weight:700; margin-bottom:8px;">実績（100文字チャット）</div>
+        <div class="stat-line"><span>今日</span><b id="sevenToday" style="color:var(--free);">-<small> 件</small></b></div>
+        <div class="stat-line"><span>昨日</span><b id="sevenYesterday" style="color:var(--free);">-<small> 件</small></b></div>
+        <div class="stat-line"><span>今週（日〜土）</span><b id="sevenWeek" style="color:var(--free);">-<small> 件</small></b></div>
+        <div class="stat-line"><span>今月</span><b id="sevenMonth" style="color:var(--free);">-<small> 件</small></b></div>
+        <div class="stat-line"><span>先月</span><b id="sevenLastMonth" style="color:var(--free);">-<small> 件</small></b></div>
+        <div style="font-size:11px; color:var(--muted); margin-top:8px;">返信した鑑定の件数（1件 <span id="sevenPriceLabel">800</span>pt）</div>
       </div>
 
       <div class="card">
@@ -601,15 +612,14 @@ async function publishNextLogin() {
 // 実績は「1回の取得で今日・昨日・今週・今月をまとめて計算」し、結果を保持する。
 // タブを切り替えるたびに読み直さないので重くならない（送信後だけ再取得）。
 let statsCache = null;
+let sevenStatsCache = null;
 
 async function loadTodayStats(force) {
   if (!tellerId) return;
   if (statsCache && !force) { renderStats(); return; }
   try {
-    // 取得開始 = 今月1日 と 今週の始まり（日曜）の早い方
-    const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
-    const weekStart = new Date(); weekStart.setDate(weekStart.getDate() - weekStart.getDay()); weekStart.setHours(0, 0, 0, 0);
-    const start = monthStart < weekStart ? monthStart : weekStart;
+    // 取得開始 = 先月1日（先月の実績まで見られるように）
+    const start = new Date(); start.setMonth(start.getMonth() - 1, 1); start.setHours(0, 0, 0, 0);
     // 獲得ポイント＝この相談でお客様が使った総ポイント（＝売上）。
     // お客様の相談も占い師の返信も両方が有料課金なので、自分の会話の有料メッセージを
     // senderId問わず合計する。会話ID = clientId_tellerId なので末尾が自分のuidかで判定。
@@ -627,6 +637,23 @@ async function loadTodayStats(force) {
       if (!m.createdAt || !m.createdAt.toDate) return;
       statsCache.push({ at: m.createdAt.toDate(), cost: m.cost || 0, conv: m.conversationId });
     });
+
+    // 100文字チャットは「自分が返信した件数」を集計（messages: senderId == 自分）
+    try {
+      const sevenSnap = await db.collection('messages')
+        .where('senderId', '==', tellerId)
+        .where('createdAt', '>=', firebase.firestore.Timestamp.fromDate(start))
+        .get();
+      sevenStatsCache = [];
+      sevenSnap.forEach(d => {
+        const m = d.data();
+        if (m.createdAt && m.createdAt.toDate) sevenStatsCache.push({ at: m.createdAt.toDate() });
+      });
+    } catch (e) {
+      console.error('100文字チャット実績の取得に失敗:', e);
+      sevenStatsCache = null;
+    }
+
     renderStats();
   } catch (e) {
     console.error('統計の取得に失敗:', e);
@@ -640,6 +667,7 @@ function renderStats() {
   const yesterdayStart = new Date(todayStart); yesterdayStart.setDate(yesterdayStart.getDate() - 1);
   const weekStart = new Date(); weekStart.setDate(weekStart.getDate() - weekStart.getDay()); weekStart.setHours(0, 0, 0, 0);
   const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
+  const lastMonthStart = new Date(monthStart); lastMonthStart.setMonth(lastMonthStart.getMonth() - 1);
 
   const sum = (from, to) => statsCache
     .filter(r => r.at >= from && (!to || r.at < to))
@@ -653,6 +681,19 @@ function renderStats() {
   $('statYesterday').innerHTML = `${sum(yesterdayStart, todayStart).toLocaleString()}<small> pt</small>`;
   $('statWeek').innerHTML = `${sum(weekStart).toLocaleString()}<small> pt</small>`;
   $('statMonth').innerHTML = `${sum(monthStart).toLocaleString()}<small> pt</small>`;
+  $('statLastMonth').innerHTML = `${sum(lastMonthStart, monthStart).toLocaleString()}<small> pt</small>`;
+
+  // 100文字チャット（返信件数）
+  if (!sevenStatsCache) return;
+  const price = (tellerDoc && tellerDoc.regularPrice) || 800;
+  $('sevenPriceLabel').textContent = price.toLocaleString();
+  const count = (from, to) => sevenStatsCache.filter(r => r.at >= from && (!to || r.at < to)).length;
+  const fmt = (n) => `${n}<small> 件</small>` + (n ? `<small style="color:var(--muted); font-weight:400;"> / ${(n * price).toLocaleString()}pt</small>` : '');
+  $('sevenToday').innerHTML = fmt(count(todayStart));
+  $('sevenYesterday').innerHTML = fmt(count(yesterdayStart, todayStart));
+  $('sevenWeek').innerHTML = fmt(count(weekStart));
+  $('sevenMonth').innerHTML = fmt(count(monthStart));
+  $('sevenLastMonth').innerHTML = fmt(count(lastMonthStart, monthStart));
 }
 
 // ===== 会話リスト =====
@@ -867,6 +908,7 @@ async function sendSevenMessage() {
     }
     $('sevenInput').value = '';
     toast('返信を送信しました');
+    loadTodayStats(true); // 100文字の実績を取り直す
   } catch (e) {
     console.error('100文字送信エラー:', e);
     toast('送信に失敗しました（お客様の返信待ちの状態の可能性があります）');
