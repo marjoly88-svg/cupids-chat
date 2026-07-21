@@ -91,6 +91,10 @@
   .card-label { font-size: 12px; color: var(--muted); }
   .big-pt { font-size: 32px; font-weight: 700; color: var(--rose); }
   .big-pt small { font-size: 15px; }
+  .stat-line { display: flex; justify-content: space-between; align-items: baseline; padding: 6px 0; border-bottom: 1px dashed var(--line); font-size: 13px; }
+  .stat-line:last-of-type { border-bottom: none; }
+  .stat-line b { font-size: 17px; color: var(--rose); font-variant-numeric: tabular-nums; }
+  .stat-line b small { font-size: 11px; }
   .stat-row { display: flex; gap: 18px; margin-top: 10px; font-size: 13px; }
   .stat-row b { font-size: 15px; }
   .stat-row .k { color: var(--muted); }
@@ -255,6 +259,14 @@
           <div><span class="k">対応した相談</span> <b id="todayConvs">-</b>件</div>
         </div>
       </div>
+      <div class="card">
+        <div class="card-label" style="color:var(--rose); font-weight:700; margin-bottom:8px;">実績（文字数チャット）</div>
+        <div class="stat-line"><span>昨日</span><b id="statYesterday">-<small> pt</small></b></div>
+        <div class="stat-line"><span>今週（日〜土）</span><b id="statWeek">-<small> pt</small></b></div>
+        <div class="stat-line"><span>今月</span><b id="statMonth">-<small> pt</small></b></div>
+        <div style="font-size:11px; color:var(--muted); margin-top:8px;">お客様が使ったポイント（相談＋返信）の合計です</div>
+      </div>
+
       <div class="card">
         <div class="card-label">未返信（文字数チャット）</div>
         <div class="big-pt" style="color:var(--ink); font-size:26px;" id="unreadCount">-<small> 件</small></div>
@@ -586,11 +598,18 @@ async function publishNextLogin() {
 }
 
 // ===== ホーム統計 =====
-async function loadTodayStats() {
+// 実績は「1回の取得で今日・昨日・今週・今月をまとめて計算」し、結果を保持する。
+// タブを切り替えるたびに読み直さないので重くならない（送信後だけ再取得）。
+let statsCache = null;
+
+async function loadTodayStats(force) {
   if (!tellerId) return;
+  if (statsCache && !force) { renderStats(); return; }
   try {
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
+    // 取得開始 = 今月1日 と 今週の始まり（日曜）の早い方
+    const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
+    const weekStart = new Date(); weekStart.setDate(weekStart.getDate() - weekStart.getDay()); weekStart.setHours(0, 0, 0, 0);
+    const start = monthStart < weekStart ? monthStart : weekStart;
     // 獲得ポイント＝この相談でお客様が使った総ポイント（＝売上）。
     // お客様の相談も占い師の返信も両方が有料課金なので、自分の会話の有料メッセージを
     // senderId問わず合計する。会話ID = clientId_tellerId なので末尾が自分のuidかで判定。
@@ -599,24 +618,41 @@ async function loadTodayStats() {
     const snap = await db.collection('mojiMessages')
       .where('createdAt', '>=', firebase.firestore.Timestamp.fromDate(start))
       .get();
-    let pt = 0, msgs = 0;
-    const convIds = new Set();
     const suffix = '_' + tellerId;
+    statsCache = [];
     snap.forEach(d => {
       const m = d.data();
       if (m.paid !== true) return;
       if (!(m.conversationId || '').endsWith(suffix)) return; // 自分の会話のみ
-      pt += m.cost || 0;
-      msgs += 1;
-      convIds.add(m.conversationId);
+      if (!m.createdAt || !m.createdAt.toDate) return;
+      statsCache.push({ at: m.createdAt.toDate(), cost: m.cost || 0, conv: m.conversationId });
     });
-    $('todayPt').innerHTML = `${pt.toLocaleString()}<small> pt</small>`;
-    $('todayMsgs').textContent = msgs;
-    $('todayConvs').textContent = convIds.size;
+    renderStats();
   } catch (e) {
     console.error('統計の取得に失敗:', e);
     $('todayPt').innerHTML = `-<small> pt</small>`;
   }
+}
+
+function renderStats() {
+  if (!statsCache) return;
+  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+  const yesterdayStart = new Date(todayStart); yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+  const weekStart = new Date(); weekStart.setDate(weekStart.getDate() - weekStart.getDay()); weekStart.setHours(0, 0, 0, 0);
+  const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
+
+  const sum = (from, to) => statsCache
+    .filter(r => r.at >= from && (!to || r.at < to))
+    .reduce((a, r) => a + r.cost, 0);
+
+  const todayRows = statsCache.filter(r => r.at >= todayStart);
+  $('todayPt').innerHTML = `${sum(todayStart).toLocaleString()}<small> pt</small>`;
+  $('todayMsgs').textContent = todayRows.length;
+  $('todayConvs').textContent = new Set(todayRows.map(r => r.conv)).size;
+
+  $('statYesterday').innerHTML = `${sum(yesterdayStart, todayStart).toLocaleString()}<small> pt</small>`;
+  $('statWeek').innerHTML = `${sum(weekStart).toLocaleString()}<small> pt</small>`;
+  $('statMonth').innerHTML = `${sum(monthStart).toLocaleString()}<small> pt</small>`;
 }
 
 // ===== 会話リスト =====
@@ -1042,7 +1078,7 @@ async function sendMessage() {
     });
     input.value = '';
     input.style.height = 'auto';
-    loadTodayStats();
+    loadTodayStats(true); // 送信したので実績を取り直す
   } catch (e) {
     console.error('送信エラー:', e);
     const reason = e.details && e.details.reason;
