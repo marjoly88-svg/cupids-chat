@@ -591,16 +591,27 @@ async function loadTodayStats() {
   try {
     const start = new Date();
     start.setHours(0, 0, 0, 0);
+    // 獲得ポイント＝この相談でお客様が使った総ポイント（＝売上）。
+    // お客様の相談も占い師の返信も両方が有料課金なので、自分の会話の有料メッセージを
+    // senderId問わず合計する。会話ID = clientId_tellerId なので末尾が自分のuidかで判定。
+    // ※当面は占い師がみなみさんのみのためこの方式で十分。占い師が増えたら
+    //   mojiMessagesにtellerIdを保存してクエリで絞る方式へ移行すること。
     const snap = await db.collection('mojiMessages')
-      .where('senderId', '==', tellerId)
-      .where('paid', '==', true)
       .where('createdAt', '>=', firebase.firestore.Timestamp.fromDate(start))
       .get();
-    let pt = 0;
+    let pt = 0, msgs = 0;
     const convIds = new Set();
-    snap.forEach(d => { pt += d.data().cost || 0; convIds.add(d.data().conversationId); });
+    const suffix = '_' + tellerId;
+    snap.forEach(d => {
+      const m = d.data();
+      if (m.paid !== true) return;
+      if (!(m.conversationId || '').endsWith(suffix)) return; // 自分の会話のみ
+      pt += m.cost || 0;
+      msgs += 1;
+      convIds.add(m.conversationId);
+    });
     $('todayPt').innerHTML = `${pt.toLocaleString()}<small> pt</small>`;
-    $('todayMsgs').textContent = snap.size;
+    $('todayMsgs').textContent = msgs;
     $('todayConvs').textContent = convIds.size;
   } catch (e) {
     console.error('統計の取得に失敗:', e);
