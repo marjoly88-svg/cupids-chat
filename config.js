@@ -32,7 +32,7 @@ const CUPIDS = {
   banners: [
     {
       title: "電話占いキューピッズ",
-      sub: "みなみと直接話せる電話鑑定",
+      sub: "人気の占い師と直接話せる電話鑑定",
       url: "https://cupids-denwa.vercel.app/",
       bg: "linear-gradient(135deg, #B4456A, #E967A5)"
     },
