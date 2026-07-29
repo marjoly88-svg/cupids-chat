@@ -1195,19 +1195,28 @@ async function openKarteFor(clientId, clientName) {
   $('karteBody').innerHTML = '<div style="color:var(--muted);">読み込み中…</div>';
   $('karteModal').classList.add('open');
   try {
+    // 100文字チャット側には閲覧許可を自動付与するFunctionが無いため、
+    // チャットサイトの占い師画面と同じく、開いた時に自分を閲覧許可へ追加してから読む
+    // （現行ルールで占い師本人の追加は許可済み）
+    await db.collection('kartes').doc(clientId).set({
+      clientId: clientId,
+      allowedFortuneTellers: firebase.firestore.FieldValue.arrayUnion(tellerId),
+    }, { merge: true });
     const doc = await db.collection('kartes').doc(clientId).get();
-    if (!doc.exists) {
+    const k = doc.exists ? doc.data() : {};
+    // 上のset(merge)で管理用フィールドだけのドキュメントができるため、記入内容の有無で判定する
+    const hasContent = Object.keys(k).some(key => !['clientId', 'allowedFortuneTellers', 'createdAt'].includes(key));
+    if (!hasContent) {
       $('karteBody').innerHTML = '<div style="color:var(--muted);">カルテはまだ記入されていません。</div>';
       return;
     }
-    const k = doc.data();
     $('karteBody').innerHTML =
       karteSection('相談者', k) +
       karteSection('お相手1', k.partner1) +
       karteSection('お相手2', k.partner2);
   } catch (e) {
     console.error('カルテ読み込みエラー:', e);
-    $('karteBody').innerHTML = '<div style="color:var(--muted);">カルテの閲覧権限がまだありません。お客様から次のメッセージが届くと自動で付与されます。</div>';
+    $('karteBody').innerHTML = '<div style="color:var(--muted);">カルテを読み込めませんでした。通信状況を確認して、もう一度開いてみてください。</div>';
   }
 }
 
