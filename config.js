@@ -14,9 +14,9 @@ const CUPIDS = {
 
   // Webプッシュ証明書の公開鍵（Firebaseコンソール→プロジェクト設定→Cloud Messaging→ウェブプッシュ証明書「現在のペア」）
   vapidKey: "BKinR2wc4E4bFSXWSHbxDutFKfFWS8oRPUKXdpkeYN2cj899LFmjtALgHBlmVzj5MHjQju9TygQznVLTEcJqnN8",
-  // 1文字6pt。既存の100文字チャット(お客さん100字+返信100字=800円=実質4円/字)より
-  // 常に5割高いプレミアム設定。「既存サイトのほうがお得」が崩れないこと
-  rate: 6, // pt / 文字
+  // 1文字5pt。既存の100文字チャット(お客さん100字+返信100字=800円=実質4円/字)より
+  // 常に25%高い設定(2026-07-29に6ptから改定)。「既存サイトのほうがお得」が崩れないこと
+  rate: 5, // pt / 文字
 
   // みなみさん（fortuneTellers のドキュメントID = 本人のuid）
   teller: {
