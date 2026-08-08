@@ -1087,10 +1087,8 @@ input.addEventListener('input', () => {
   updateComposer();
 });
 
-// Shift+Enterで送信（Enter単体は改行。誤送信防止のためEnter送信モードは設けない）
-input.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && e.shiftKey) { e.preventDefault(); sendMessage(); }
-});
+// キーボードでは送信しない（Enter も Shift+Enter も改行。送信は送信ボタンだけ）
+// 長文の鑑定メッセージを書いている途中の誤送信を防ぐため。
 
 function updateComposer() {
   const len = input.value.length;
