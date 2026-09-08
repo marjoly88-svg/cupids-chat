@@ -91,6 +91,18 @@
   .card-label { font-size: 12px; color: var(--muted); }
   .big-pt { font-size: 32px; font-weight: 700; color: var(--rose); }
   .big-pt small { font-size: 15px; }
+  .unread-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .unread-card { min-width: 0; text-align: left; color: var(--ink); }
+  .unread-card:focus-visible { outline: 2px solid var(--rose); outline-offset: 3px; }
+  .unread-title { display: block; font-size: 13px; font-weight: 700; color: var(--rose); margin-top: 4px; }
+  .unread-card.seven .unread-title, .unread-card.seven .big-pt { color: var(--free); }
+  .unread-card .big-pt { display: block; font-size: 28px; margin-top: 4px; }
+  .total-card { background: var(--gold-bg); border-color: #EAD9B0; }
+  .total-card > .card-label { color: var(--ink); font-weight: 700; }
+  .total-card > .big-pt { color: var(--gold); margin: 4px 0 8px; }
+  .total-breakdown { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12px; }
+  .total-breakdown b { font-variant-numeric: tabular-nums; }
+  .stat-row { flex-wrap: wrap; row-gap: 4px; }
   .stat-line { display: flex; justify-content: space-between; align-items: baseline; padding: 6px 0; border-bottom: 1px dashed var(--line); font-size: 13px; }
   .stat-line:last-of-type { border-bottom: none; }
   .stat-line b { font-size: 17px; color: var(--rose); font-variant-numeric: tabular-nums; }
@@ -251,20 +263,37 @@
   <main>
     <!-- ホーム -->
     <div id="tab-home" class="page">
-      <div class="card">
-        <div class="card-label">本日の獲得ポイント</div>
+      <div class="unread-grid">
+        <button type="button" class="card unread-card" onclick="showTab('chat')">
+          <span class="card-label">未返信</span>
+          <span class="unread-title">文字数チャット</span>
+          <span class="big-pt" id="unreadCount">-<small> 件</small></span>
+        </button>
+        <button type="button" class="card unread-card seven" onclick="showTab('seven')">
+          <span class="card-label">未返信</span>
+          <span class="unread-title">100文字チャット</span>
+          <span class="big-pt" id="sevenUnreadCount">-<small> 件</small></span>
+        </button>
+      </div>
+      <div class="card total-card">
+        <div class="card-label">本日の獲得ポイント（合計）</div>
         <div class="big-pt" id="todayPt">--<small> pt</small></div>
-        <div class="stat-row">
-          <div><span class="k">有料メッセージ</span> <b id="todayMsgs">-</b>件</div>
-          <div><span class="k">対応した相談</span> <b id="todayConvs">-</b>件</div>
+        <div class="total-breakdown">
+          <span>文字数 <b id="todayMojiPt">-- pt</b></span>
+          <span>100文字 <b id="todaySevenPt">-- pt</b></span>
         </div>
       </div>
       <div class="card">
         <div class="card-label" style="color:var(--rose); font-weight:700; margin-bottom:8px;">実績（文字数チャット）</div>
+        <div class="stat-line"><span>今日</span><b id="statToday">-<small> pt</small></b></div>
         <div class="stat-line"><span>昨日</span><b id="statYesterday">-<small> pt</small></b></div>
         <div class="stat-line"><span>今週（日〜土）</span><b id="statWeek">-<small> pt</small></b></div>
         <div class="stat-line"><span>今月</span><b id="statMonth">-<small> pt</small></b></div>
         <div class="stat-line"><span>先月</span><b id="statLastMonth">-<small> pt</small></b></div>
+        <div class="stat-row">
+          <div><span class="k">今日の有料メッセージ</span> <b id="todayMsgs">-</b>件</div>
+          <div><span class="k">今日の対応した相談</span> <b id="todayConvs">-</b>件</div>
+        </div>
         <div style="font-size:11px; color:var(--muted); margin-top:8px;">お客様が使ったポイント（相談＋返信）の合計です</div>
       </div>
 
@@ -278,15 +307,6 @@
         <div style="font-size:11px; color:var(--muted); margin-top:8px;">返信した鑑定の件数（1件 <span id="sevenPriceLabel">800</span>pt）</div>
       </div>
 
-      <div class="card">
-        <div class="card-label">未返信（文字数チャット）</div>
-        <div class="big-pt" style="color:var(--ink); font-size:26px;" id="unreadCount">-<small> 件</small></div>
-      </div>
-      <div class="card" style="cursor:pointer;" onclick="showTab('seven')">
-        <div class="card-label">未返信（100文字チャット）</div>
-        <div class="big-pt" style="color:var(--ink); font-size:26px;" id="sevenUnreadCount">-<small> 件</small></div>
-        <div style="font-size:11px; color:var(--muted); margin-top:4px;">タップで100文字チャットを開く</div>
-      </div>
       <div class="card">
         <div class="card-label" style="color:var(--rose); font-weight:700; margin-bottom:6px;">プッシュ通知</div>
         <div style="font-size:12px; color:var(--muted); line-height:1.8;" id="pushStatusText">確認中…</div>
@@ -565,6 +585,7 @@ function showTab(name) {
 function subscribeTeller() {
   unsubTeller = db.collection('fortuneTellers').doc(tellerId).onSnapshot(doc => {
     tellerDoc = doc.data() || {};
+    renderStats(); // 料金の取得・更新後に100文字の実績と合計も再計算する
     const chatOpen = tellerDoc.mojiChatOpen === true;
     const phoneWaiting = tellerDoc.phoneStatus === 'waiting' || tellerDoc.phoneStatus === 'available';
 
@@ -674,7 +695,9 @@ function renderStats() {
     .reduce((a, r) => a + r.cost, 0);
 
   const todayRows = statsCache.filter(r => r.at >= todayStart);
-  $('todayPt').innerHTML = `${sum(todayStart).toLocaleString()}<small> pt</small>`;
+  const todayMojiPt = sum(todayStart);
+  $('statToday').innerHTML = `${todayMojiPt.toLocaleString()}<small> pt</small>`;
+  $('todayMojiPt').textContent = `${todayMojiPt.toLocaleString()} pt`;
   $('todayMsgs').textContent = todayRows.length;
   $('todayConvs').textContent = new Set(todayRows.map(r => r.conv)).size;
 
@@ -684,10 +707,20 @@ function renderStats() {
   $('statLastMonth').innerHTML = `${sum(lastMonthStart, monthStart).toLocaleString()}<small> pt</small>`;
 
   // 100文字チャット（返信件数）
-  if (!sevenStatsCache) return;
+  if (!sevenStatsCache) {
+    $('todayPt').innerHTML = `-<small> pt</small>`;
+    $('todaySevenPt').textContent = '取得できませんでした';
+    ['sevenToday', 'sevenYesterday', 'sevenWeek', 'sevenMonth', 'sevenLastMonth'].forEach(id => {
+      $(id).innerHTML = `-<small> 件</small>`;
+    });
+    return;
+  }
   const price = (tellerDoc && tellerDoc.regularPrice) || 800;
   $('sevenPriceLabel').textContent = price.toLocaleString();
   const count = (from, to) => sevenStatsCache.filter(r => r.at >= from && (!to || r.at < to)).length;
+  const todaySevenPt = count(todayStart) * price;
+  $('todaySevenPt').textContent = `${todaySevenPt.toLocaleString()} pt`;
+  $('todayPt').innerHTML = `${(todayMojiPt + todaySevenPt).toLocaleString()}<small> pt</small>`;
   const fmt = (n) => `${n}<small> 件</small>` + (n ? `<small style="color:var(--muted); font-weight:400;"> / ${(n * price).toLocaleString()}pt</small>` : '');
   $('sevenToday').innerHTML = fmt(count(todayStart));
   $('sevenYesterday').innerHTML = fmt(count(yesterdayStart, todayStart));
