@@ -235,6 +235,14 @@
     border: 1px solid var(--rose); color: var(--rose); font-size: 12px; font-weight: 700;
     padding: 4px 10px; border-radius: 999px; flex-shrink: 0;
   }
+  .memo-btn:disabled { opacity: .45; cursor: default; }
+  .copy-btn { background: var(--rose); color: #fff; }
+  @media (max-width: 480px) {
+    .chat-header { gap: 5px; padding-left: 6px; padding-right: 6px; }
+    .chat-header .back { padding-left: 4px; padding-right: 4px; }
+    .chat-header > b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .memo-btn { padding-left: 7px; padding-right: 7px; }
+  }
   .logout-link { text-align: center; font-size: 12px; color: var(--muted); padding: 10px; text-decoration: underline; }
 </style>
 </head>
@@ -340,6 +348,7 @@
         <b id="sevenClientName"></b>
         <button class="memo-btn" onclick="openSevenKarte()">カルテ</button>
         <button class="memo-btn" onclick="openSevenMemo()">メモ</button>
+        <button class="memo-btn copy-btn" id="sevenCopyBtn" onclick="copySevenHistory()" aria-label="これまでの100文字チャット履歴をコピー" disabled>コピー</button>
         <span style="margin-left:auto; font-size:10px; color:var(--muted);">100文字</span>
       </div>
       <div class="ended-note" id="sevenTurnNote" style="display:none;">お客様の返信待ちです（1往復制のため、次のメッセージが届くまで返信できません）</div>
@@ -362,6 +371,7 @@
         <b id="chatClientName"></b>
         <button class="memo-btn" onclick="openKarte()">カルテ</button>
         <button class="memo-btn" onclick="openMemo()">メモ</button>
+        <button class="memo-btn copy-btn" id="chatCopyBtn" onclick="copyChatHistory()" aria-label="これまでの文字数チャット履歴をコピー" disabled>コピー</button>
         <div class="client-balance" id="chatClientBalance"></div>
       </div>
       <div class="ended-note" id="chatEndedNote" style="display:none;">お客様が相談を終了しています（有料メッセージは送れません）</div>
@@ -509,6 +519,7 @@ let clientBalance = 0;
 let paidMode = true;
 let sending = false;
 let unsubTeller = null, unsubConvs = null, unsubMsgs = null, unsubClient = null, unsubSeven = null;
+let currentMessages = [];
 
 const $ = (id) => document.getElementById(id);
 
@@ -748,6 +759,7 @@ let sevenConvs = [];
 let currentSevenConv = null;
 let unsubSevenMsgs = null;
 let sevenSending = false;
+let currentSevenMessages = [];
 
 function sevenHasNew(c) { return c.data.clientHasSent === true && c.data.fortuneTellerHasSent === false; }
 
@@ -865,6 +877,8 @@ function closeSevenChat() {
   if (unsubSevenMsgs) { unsubSevenMsgs(); unsubSevenMsgs = null; }
   if (!currentSevenConv) return;
   currentSevenConv = null;
+  currentSevenMessages = [];
+  $('sevenCopyBtn').disabled = true;
   $('sevenDetail').style.display = 'none';
   $('tab-seven').style.display = 'block';
   ['home', 'chat', 'standby'].forEach(t => { $('tab-' + t).style.display = 'none'; $('nav-' + t).classList.remove('active'); });
@@ -883,8 +897,10 @@ function renderSevenState() {
 function renderSevenMessages(snap) {
   const box = $('sevenMsgList');
   box.innerHTML = '';
+  currentSevenMessages = [];
   snap.forEach(doc => {
     const m = doc.data();
+    currentSevenMessages.push({ text: m.text || '', createdAt: m.createdAt });
     const mine = m.senderId === tellerId;
     const wrap = document.createElement('div');
     wrap.className = 'msg ' + (mine ? 'me' : 'other');
@@ -895,6 +911,7 @@ function renderSevenMessages(snap) {
     wrap.appendChild(bubble);
     box.appendChild(wrap);
   });
+  $('sevenCopyBtn').disabled = currentSevenMessages.length === 0;
   box.scrollTop = box.scrollHeight;
 }
 
@@ -1035,6 +1052,8 @@ function closeChat() {
   if (unsubClient) { unsubClient(); unsubClient = null; }
   if (!currentConv) return;
   currentConv = null;
+  currentMessages = [];
+  $('chatCopyBtn').disabled = true;
   $('chatDetail').style.display = 'none';
   $('tab-chat').style.display = 'block';
   $('nav-chat').classList.add('active');
@@ -1062,8 +1081,10 @@ function updateClientBalanceView() {
 function renderMessages(snap) {
   const box = $('msgList');
   box.innerHTML = '';
+  currentMessages = [];
   snap.forEach(doc => {
     const m = doc.data();
+    currentMessages.push({ text: m.text || '', createdAt: m.createdAt });
     const mine = m.senderRole === 'teller';
     const wrap = document.createElement('div');
     wrap.className = 'msg ' + (mine ? 'me' : 'other');
@@ -1077,7 +1098,70 @@ function renderMessages(snap) {
     wrap.appendChild(bubble);
     box.appendChild(wrap);
   });
+  $('chatCopyBtn').disabled = currentMessages.length === 0;
   box.scrollTop = box.scrollHeight;
+}
+
+// ===== これまでの相談内容・回答をカルテメモ用にコピー =====
+function historyDateText(ts) {
+  const d = ts && ts.toDate ? ts.toDate() : (ts instanceof Date ? ts : null);
+  if (!d || isNaN(d.getTime())) return '';
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+}
+
+function buildHistoryCopyText(clientName, chatType, messages) {
+  const lines = [`${clientName || 'お客様'}カルテメモ${chatType}`];
+  let lastDate = '';
+  messages.forEach(m => {
+    const text = String(m.text || '').trim();
+    if (!text) return;
+    const date = historyDateText(m.createdAt);
+    if (date && date !== lastDate) {
+      lines.push(date);
+      lastDate = date;
+    }
+    lines.push(text);
+  });
+  return lines.join('\n');
+}
+
+async function writeClipboardText(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return;
+    } catch (e) {
+      // iPhoneのホーム画面アプリなどでClipboard APIが拒否された時は旧方式へ回す
+    }
+  }
+  const field = document.createElement('textarea');
+  field.value = text;
+  field.setAttribute('readonly', '');
+  field.style.cssText = 'position:fixed; left:-9999px; top:0; opacity:0;';
+  document.body.appendChild(field);
+  field.select();
+  const copied = document.execCommand('copy');
+  field.remove();
+  if (!copied) throw new Error('copy failed');
+}
+
+async function copyHistory(clientName, chatType, messages) {
+  if (!messages.length) { toast('コピーできる履歴がまだありません'); return; }
+  try {
+    await writeClipboardText(buildHistoryCopyText(clientName, chatType, messages));
+    toast('相談内容と回答をコピーしました');
+  } catch (e) {
+    console.error('履歴コピーエラー:', e);
+    toast('コピーに失敗しました');
+  }
+}
+
+function copySevenHistory() {
+  if (currentSevenConv) copyHistory(sevenName(currentSevenConv), '100文字', currentSevenMessages);
+}
+
+function copyChatHistory() {
+  if (currentConv) copyHistory(currentConv.data.clientName || 'お客様', '文字数', currentMessages);
 }
 
 // ===== 無料スイッチ（Stella型: 入=無料）・定型文チップ =====
