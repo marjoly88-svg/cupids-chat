@@ -112,6 +112,9 @@
   .stat-row .k { color: var(--muted); }
   .notice-card { background: var(--gold-bg); border: 1px solid #EAD9B0; border-radius: 18px; padding: 14px 16px; font-size: 13px; line-height: 1.8; }
   .notice-card b { color: var(--gold); }
+  .others-star { display: none; background: var(--gold-bg); color: var(--gold); border: 1px solid #EAD9B0; font-size: 12px; font-weight: 700; padding: 2px 9px; border-radius: 999px; }
+  .others-card { display: none; background: var(--gold-bg); border: 1px solid #EAD9B0; border-radius: 18px; padding: 12px 16px; font-size: 13px; line-height: 1.8; color: var(--dark); text-decoration: none; }
+  .others-card .others-title { color: var(--gold); font-weight: 700; }
 
   /* ===== 会話リスト ===== */
   .conv-item {
@@ -265,6 +268,7 @@
   <header>
     <span class="brand" style="font-size:17px; font-weight:600;">キューピッズ</span>
     <span class="header-badge">管理</span>
+    <a class="others-star" id="othersStar" href="https://cupids-seven.vercel.app/admin.html" target="_blank" rel="noopener" title="ほかの占い師に返信待ちの100文字チャットがあります">☆ 他 <span id="othersStarCount">0</span></a>
     <div class="header-status" id="headerStatus"><span class="dot"></span><span id="headerStatusText">オフライン</span></div>
   </header>
 
@@ -283,6 +287,10 @@
           <span class="big-pt" id="sevenUnreadCount">-<small> 件</small></span>
         </button>
       </div>
+      <a class="others-card" id="othersCard" href="https://cupids-seven.vercel.app/admin.html" target="_blank" rel="noopener">
+        <div class="others-title">☆ ほかの占い師に返信待ち（100文字チャット）</div>
+        <div id="othersList"></div>
+      </a>
       <div class="card total-card">
         <div class="card-label">本日の獲得ポイント（合計）</div>
         <div class="big-pt" id="todayPt">--<small> pt</small></div>
@@ -518,7 +526,7 @@ let currentConv = null;    // 開いている会話 {id, data}
 let clientBalance = 0;
 let paidMode = true;
 let sending = false;
-let unsubTeller = null, unsubConvs = null, unsubMsgs = null, unsubClient = null, unsubSeven = null;
+let unsubTeller = null, unsubConvs = null, unsubMsgs = null, unsubClient = null, unsubSeven = null, unsubOthers = null;
 let currentMessages = [];
 
 const $ = (id) => document.getElementById(id);
@@ -536,6 +544,7 @@ auth.onAuthStateChanged(async (user) => {
   if (unsubTeller) { unsubTeller(); unsubTeller = null; }
   if (unsubConvs) { unsubConvs(); unsubConvs = null; }
   if (unsubSeven) { unsubSeven(); unsubSeven = null; }
+  if (unsubOthers) { unsubOthers(); unsubOthers = null; }
   closeChat();
   closeSevenChat();
 
@@ -560,6 +569,7 @@ auth.onAuthStateChanged(async (user) => {
   subscribeTeller();
   subscribeConversations();
   subscribeSevenConversations();
+  subscribeOthersUnreplied();
   loadTodayStats();
   updatePushStatus();
 });
@@ -820,6 +830,37 @@ function subscribeSevenConversations() {
       console.error('100文字チャット会話の購読エラー:', err);
       $('sevenUnreadCount').innerHTML = `-<small> 件</small>`;
     });
+}
+
+// ===== ほかの占い師の100文字チャット返信待ち（cupids-seven 管理画面の💗と同じ判定） =====
+const ftNameCache = {}; // fortuneTellerId -> name
+function subscribeOthersUnreplied() {
+  unsubOthers = db.collection('conversations')
+    .where('clientHasSent', '==', true)
+    .where('fortuneTellerHasSent', '==', false)
+    .onSnapshot(async snap => {
+      const byFt = {};
+      snap.forEach(d => {
+        const ftId = d.data().fortuneTellerId;
+        if (!ftId || ftId === tellerId) return;
+        byFt[ftId] = (byFt[ftId] || 0) + 1;
+      });
+      for (const id of Object.keys(byFt)) {
+        if (ftNameCache[id] !== undefined) continue;
+        try {
+          const f = await db.collection('fortuneTellers').doc(id).get();
+          ftNameCache[id] = (f.exists && f.data().name) || '名前なし';
+        } catch (e) { ftNameCache[id] = '名前なし'; }
+      }
+      const total = Object.values(byFt).reduce((a, b) => a + b, 0);
+      $('othersStar').style.display = total > 0 ? 'inline-block' : 'none';
+      $('othersStarCount').textContent = total;
+      $('othersCard').style.display = total > 0 ? 'block' : 'none';
+      $('othersList').innerHTML = Object.keys(byFt)
+        .sort((a, b) => byFt[b] - byFt[a])
+        .map(id => `${escapeHtml(ftNameCache[id])} <b>${byFt[id]}件</b>`)
+        .join('　');
+    }, err => console.error('ほかの占い師の返信待ち購読エラー:', err));
 }
 
 let sevenShowCount = 5; // 一覧は最新5件だけ表示（重くならないように）。「さらに表示」で5件ずつ追加
