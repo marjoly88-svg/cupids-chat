@@ -849,9 +849,11 @@ function subscribeOthersUnreplied() {
         if (ftNameCache[id] !== undefined) continue;
         try {
           const f = await db.collection('fortuneTellers').doc(id).get();
-          ftNameCache[id] = (f.exists && f.data().name) || '名前なし';
+          ftNameCache[id] = f.exists ? (f.data().name || '名前なし') : null;
         } catch (e) { ftNameCache[id] = '名前なし'; }
       }
+      // 占い師一覧に居ない宛先（削除済み・テスト用）の会話は数えない（cupids-seven管理画面と同じ）
+      Object.keys(byFt).forEach(id => { if (ftNameCache[id] === null) delete byFt[id]; });
       const total = Object.values(byFt).reduce((a, b) => a + b, 0);
       $('othersStar').style.display = total > 0 ? 'inline-block' : 'none';
       $('othersStarCount').textContent = total;
