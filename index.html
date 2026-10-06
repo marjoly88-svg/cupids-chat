@@ -790,51 +790,21 @@ async function applyChargeCode() {
   msg.className = 'modal-msg';
 
   try {
-    const codeSnapshot = await db.collection('chargeCodes').where('chargeCode', '==', code).get();
-    if (codeSnapshot.empty) {
-      msg.textContent = '無効なコードです';
-      msg.className = 'modal-msg error';
-      return;
-    }
-    const codeDoc = codeSnapshot.docs[0];
-    const codeData = codeDoc.data();
-    if (codeData.used === true) {
+    // コードの適用はサーバー側(redeemChargeCode)で行う（2026-10-06）。残高表示は users の onSnapshot が更新する
+    const res = await functions.httpsCallable('redeemChargeCode')({ code: code });
+    const result = res.data || {};
+    if (result.status === 'already') {
       msg.textContent = 'このコードのポイントはすでに反映済みです';
       msg.className = 'modal-msg success';
       return;
     }
-    const points = codeData.points || 0;
-    const userRef = db.collection('users').doc(currentUser.uid);
-
-    await db.runTransaction(async (tx) => {
-      const userDoc = await tx.get(userRef);
-      const currentPoints = (userDoc.data() && userDoc.data().points) || 0;
-      tx.update(userRef, {
-        points: currentPoints + points,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-      tx.update(codeDoc.ref, {
-        used: true,
-        usedBy: currentUser.uid,
-        usedAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-    });
-
-    await db.collection('chargeHistory').add({
-      userId: currentUser.uid,
-      email: currentUser.email,
-      points: points,
-      code: code,
-      source: 'chargeCode',
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-
+    const points = result.points || 0;
     msg.textContent = `${points.toLocaleString()}pt チャージしました！`;
     msg.className = 'modal-msg success';
     codeInput.value = '';
   } catch (e) {
     console.error('チャージエラー:', e);
-    msg.textContent = 'エラーが発生しました';
+    msg.textContent = e.message || 'エラーが発生しました';
     msg.className = 'modal-msg error';
   }
 }
