@@ -7,7 +7,7 @@
   'use strict';
   if (win.CupidsAnalytics) return win.CupidsAnalytics;
   var ID = 'G-Z7RBR6PTY0';
-  var OWNED = ['links-three-olive.vercel.app', 'cupids-denwa.vercel.app',
+  var OWNED = ['links-three-olive.vercel.app', 'minami.cure-commu.com', 'cupids-denwa.vercel.app',
     'cupids-seven.vercel.app', 'cupids-chat.vercel.app'];
   var SOURCES = ['instagram', 'tiktok', 'youtube', 'line', 'x', 'facebook',
     'threads', 'google', 'port', 'referral', 'direct', 'internal', 'test'];
@@ -51,7 +51,7 @@
   try { if (!testMode) win.sessionStorage.setItem(storageKey, JSON.stringify({source:source, at:now})); } catch (_) {}
 
   function siteName(h) {
-    return {'links-three-olive.vercel.app':'links', 'cupids-denwa.vercel.app':'phone',
+    return {'links-three-olive.vercel.app':'links', 'minami.cure-commu.com':'links', 'cupids-denwa.vercel.app':'phone',
       'cupids-seven.vercel.app':'chat100', 'cupids-chat.vercel.app':'chat_text'}[h] || 'other';
   }
   var site = siteName(here.hostname);
