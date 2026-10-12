@@ -8,7 +8,8 @@
   if (win.CupidsAnalytics) return win.CupidsAnalytics;
   var ID = 'G-Z7RBR6PTY0';
   var OWNED = ['links-three-olive.vercel.app', 'minami.cure-commu.com', 'cupids-denwa.vercel.app',
-    'cupids-seven.vercel.app', 'cupids-chat.vercel.app'];
+    'cupids-seven.vercel.app', 'cupids-chat.vercel.app',
+    'uranai.cure-commu.com', '100.cure-commu.com', 'chat.cure-commu.com'];
   var SOURCES = ['instagram', 'tiktok', 'youtube', 'line', 'x', 'facebook',
     'threads', 'google', 'port', 'referral', 'direct', 'internal', 'test'];
   var here = new URL(win.location.href);
@@ -52,7 +53,8 @@
 
   function siteName(h) {
     return {'links-three-olive.vercel.app':'links', 'minami.cure-commu.com':'links', 'cupids-denwa.vercel.app':'phone',
-      'cupids-seven.vercel.app':'chat100', 'cupids-chat.vercel.app':'chat_text'}[h] || 'other';
+      'cupids-seven.vercel.app':'chat100', 'cupids-chat.vercel.app':'chat_text',
+      'uranai.cure-commu.com':'phone', '100.cure-commu.com':'chat100', 'chat.cure-commu.com':'chat_text'}[h] || 'other';
   }
   var site = siteName(here.hostname);
   var titles = {links:'みなみのリンク集', phone:'キューピッズ 電話鑑定',
