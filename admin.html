@@ -297,7 +297,6 @@
         <div class="total-breakdown">
           <span>文字数 <b id="todayMojiPt">-- pt</b></span>
           <span>100文字 <b id="todaySevenPt">-- pt</b></span>
-          <span>式神 <b id="todayKanteiPt">-- pt</b></span>
         </div>
       </div>
       <div class="card">
@@ -322,16 +321,6 @@
         <div class="stat-line"><span>今月</span><b id="sevenMonth" style="color:var(--free);">-<small> 件</small></b></div>
         <div class="stat-line"><span>先月</span><b id="sevenLastMonth" style="color:var(--free);">-<small> 件</small></b></div>
         <div style="font-size:11px; color:var(--muted); margin-top:8px;">返信した鑑定の件数（1件 <span id="sevenPriceLabel">800</span>pt）</div>
-      </div>
-
-      <div class="card">
-        <div class="card-label" style="color:#7a4b8f; font-weight:700; margin-bottom:8px;">実績（十二の式神・自動鑑定）</div>
-        <div class="stat-line"><span>今日</span><b id="kanteiToday" style="color:#7a4b8f;">-<small> 件</small></b></div>
-        <div class="stat-line"><span>昨日</span><b id="kanteiYesterday">-<small> 件</small></b></div>
-        <div class="stat-line"><span>今週（日〜土）</span><b id="kanteiWeek">-<small> 件</small></b></div>
-        <div class="stat-line"><span>今月</span><b id="kanteiMonth">-<small> 件</small></b></div>
-        <div class="stat-line"><span>先月</span><b id="kanteiLastMonth">-<small> 件</small></b></div>
-        <div style="font-size:11px; color:var(--muted); margin-top:8px;">鑑定書（1,600pt）とこよみの扉（100pt）の購入件数と、使われたポイントの合計です（12.cure-commu.com）</div>
       </div>
 
       <div class="card">
@@ -666,7 +655,6 @@ async function publishNextLogin() {
 // タブを切り替えるたびに読み直さないので重くならない（送信後だけ再取得）。
 let statsCache = null;
 let sevenStatsCache = null;
-let kanteiStatsCache = null; // 十二の式神の購入（pointHistory reason=kantei）
 
 async function loadTodayStats(force) {
   if (!tellerId) return;
@@ -706,19 +694,6 @@ async function loadTodayStats(force) {
     } catch (e) {
       console.error('100文字チャット実績の取得に失敗:', e);
       sevenStatsCache = null;
-    }
-
-    // 十二の式神（自動鑑定）の購入＝pointHistory の reason "kantei"（Cloud Function buyKantei が書く）。2026-10-22
-    try {
-      const kSnap = await db.collection('pointHistory').where('reason', '==', 'kantei').get();
-      kanteiStatsCache = [];
-      kSnap.forEach(d => {
-        const m = d.data();
-        if (m.createdAt && m.createdAt.toDate) kanteiStatsCache.push({ at: m.createdAt.toDate(), pt: Math.abs(m.change || 0) });
-      });
-    } catch (e) {
-      console.error('十二の式神の実績の取得に失敗:', e);
-      kanteiStatsCache = null;
     }
 
     renderStats();
@@ -773,23 +748,6 @@ function renderStats() {
   $('sevenWeek').innerHTML = fmt(count(weekStart));
   $('sevenMonth').innerHTML = fmt(count(monthStart));
   $('sevenLastMonth').innerHTML = fmt(count(lastMonthStart, monthStart));
-
-  // 十二の式神（件数と使われたポイント）
-  if (!kanteiStatsCache) {
-    $('todayKanteiPt').textContent = '取得できませんでした';
-    ['kanteiToday', 'kanteiYesterday', 'kanteiWeek', 'kanteiMonth', 'kanteiLastMonth'].forEach(id => { $(id).innerHTML = `-<small> 件</small>`; });
-    return;
-  }
-  const kRows = (from, to) => kanteiStatsCache.filter(r => r.at >= from && (!to || r.at < to));
-  const kfmt = (rows) => `${rows.length}<small> 件</small>` + (rows.length ? `<small style="color:var(--muted); font-weight:400;"> / ${rows.reduce((a, r) => a + r.pt, 0).toLocaleString()}pt</small>` : '');
-  const todayKanteiPt = kRows(todayStart).reduce((a, r) => a + r.pt, 0);
-  $('todayKanteiPt').textContent = `${todayKanteiPt.toLocaleString()} pt`;
-  $('todayPt').innerHTML = `${(todayMojiPt + todaySevenPt + todayKanteiPt).toLocaleString()}<small> pt</small>`;
-  $('kanteiToday').innerHTML = kfmt(kRows(todayStart));
-  $('kanteiYesterday').innerHTML = kfmt(kRows(yesterdayStart, todayStart));
-  $('kanteiWeek').innerHTML = kfmt(kRows(weekStart));
-  $('kanteiMonth').innerHTML = kfmt(kRows(monthStart));
-  $('kanteiLastMonth').innerHTML = kfmt(kRows(lastMonthStart, monthStart));
 }
 
 // ===== 会話リスト =====
