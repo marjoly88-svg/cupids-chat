@@ -70,7 +70,7 @@
   }
   .banner .b-title { font-family: 'Shippori Mincho', serif; font-size: 19px; font-weight: 600; letter-spacing: .04em; }
   .banner .b-sub { font-size: 12px; opacity: .92; margin-top: 6px; }
-  .banner img { width: 100%; border-radius: 16px; display: block; }
+  .banner img { width: 50%; margin: 0 auto; border-radius: 12px; display: block; } /* 画像バナーは半分の大きさ（10/22 本人「でかいから半分で」） */
   .banner-dots { display: flex; justify-content: center; gap: 7px; margin-top: 9px; }
   .banner-dots span { width: 7px; height: 7px; border-radius: 50%; background: var(--line); transition: background .2s; }
   .banner-dots span.on { background: var(--rose); }
@@ -982,7 +982,8 @@ async function saveKarte() {
       a.rel = 'noopener';
     }
     if (b.img) {
-      a.style.padding = '0';
+      a.style.padding = '8px 0';
+      a.style.background = b.bg || 'linear-gradient(135deg, #5B3560, #9A7FB0)';
       a.innerHTML = `<img src="${b.img}" alt="${b.title || ''}">`;
     } else {
       a.style.background = b.bg || 'var(--rose)';
