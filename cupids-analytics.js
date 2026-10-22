@@ -1,4 +1,4 @@
-/* Shared, privacy-minimized Cupids analytics. Keep copies in the three customer sites identical. */
+/* Shared, privacy-minimized Cupids analytics. Keep the five copies (chat / 100 / denwa / links / 自動鑑定) identical. */
 (function (root, factory) {
   'use strict';
   if (typeof module === 'object' && module.exports) module.exports = factory;
@@ -9,7 +9,7 @@
   var ID = 'G-Z7RBR6PTY0';
   var OWNED = ['links-three-olive.vercel.app', 'minami.cure-commu.com', 'cupids-denwa.vercel.app',
     'cupids-seven.vercel.app', 'cupids-chat.vercel.app',
-    'uranai.cure-commu.com', '100.cure-commu.com', 'chat.cure-commu.com'];
+    'uranai.cure-commu.com', '100.cure-commu.com', 'chat.cure-commu.com', '12.cure-commu.com'];
   var SOURCES = ['instagram', 'tiktok', 'youtube', 'line', 'x', 'facebook',
     'threads', 'google', 'port', 'referral', 'direct', 'internal', 'test'];
   var here = new URL(win.location.href);
@@ -54,11 +54,13 @@
   function siteName(h) {
     return {'links-three-olive.vercel.app':'links', 'minami.cure-commu.com':'links', 'cupids-denwa.vercel.app':'phone',
       'cupids-seven.vercel.app':'chat100', 'cupids-chat.vercel.app':'chat_text',
-      'uranai.cure-commu.com':'phone', '100.cure-commu.com':'chat100', 'chat.cure-commu.com':'chat_text'}[h] || 'other';
+      'uranai.cure-commu.com':'phone', '100.cure-commu.com':'chat100', 'chat.cure-commu.com':'chat_text',
+      '12.cure-commu.com':'shikigami'}[h] || 'other';
   }
   var site = siteName(here.hostname);
   var titles = {links:'みなみのリンク集', phone:'キューピッズ 電話鑑定',
-    chat100:'キューピッズ 100文字チャット', chat_text:'キューピッズ 文字数チャット', other:'キューピッズ'};
+    chat100:'キューピッズ 100文字チャット', chat_text:'キューピッズ 文字数チャット',
+    shikigami:'七水南の十二の式神', other:'キューピッズ'};
   var safeUrl = here.origin + here.pathname;
   // Unknown campaign text may contain personal data. Send only the fixed SNS labels.
   if (sourceName(here.searchParams.get('utm_source'))) {
@@ -72,8 +74,9 @@
     page_location:safeUrl, page_referrer:safeRef, page_title:titles[site]};
   function track(name, service) {
     try {
-      if (!['traffic_visit','service_select','purchase_link_click','consultation_submit','call_connected'].includes(name)) return;
-      if (service && !['phone','chat100','chat_text','mail','points','goods','digital','affiliate','social'].includes(service)) return;
+      // kantei_purchase = 十二の式神（12.cure-commu.com）で鑑定書(kantei)か こよみの扉(koyomi)をポイントで買った（2026-10-22）
+      if (!['traffic_visit','service_select','purchase_link_click','consultation_submit','call_connected','kantei_purchase'].includes(name)) return;
+      if (service && !['phone','chat100','chat_text','mail','points','goods','digital','affiliate','social','shikigami','kantei','koyomi'].includes(service)) return;
       var params = Object.assign({}, base);
       if (service) params.service_type = service;
       if (enabled) win.gtag('event', name, params);
@@ -89,7 +92,7 @@
       var u = new URL(raw, here.href);
       if (u.protocol !== 'https:') return null;
       var owned = siteName(u.hostname);
-      if (owned !== 'other' && owned !== 'links') return owned;
+      if (owned !== 'other' && owned !== 'links') return owned; // shikigami も鑑定先の1つとして数える
       if (u.hostname === 'qpizzu.stores.jp') return 'points';
       if (u.hostname === 'minamisan.stores.jp') return u.pathname === '/items/671e3d14dbcf2501d843030c' ? 'mail' : 'digital';
       if (['marjoly.booth.pm','marjoly.base.shop'].includes(u.hostname)) return 'goods';
