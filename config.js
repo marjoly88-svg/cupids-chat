@@ -39,13 +39,13 @@ const CUPIDS = {
     {
       title: "電話占いキューピッズ",
       sub: "人気の占い師と直接話せる電話鑑定",
-      url: "https://cupids-denwa.vercel.app/",
+      url: "https://uranai.cure-commu.com/",
       bg: "linear-gradient(135deg, #B4456A, #E967A5)"
     },
     {
       title: "1往復100文字チャット占い",
       sub: "100文字×1往復800円の安心チャット",
-      url: "https://cupids-seven.vercel.app/index.html",
+      url: "https://100.cure-commu.com/",
       bg: "linear-gradient(135deg, #4E9B8F, #7CC5B9)"
     },
     {
