@@ -333,7 +333,7 @@
         <div class="stat-line"><span>今週（日〜土）</span><b id="kanteiWeek">-<small> 件</small></b></div>
         <div class="stat-line"><span>今月</span><b id="kanteiMonth">-<small> 件</small></b></div>
         <div class="stat-line"><span>先月</span><b id="kanteiLastMonth">-<small> 件</small></b></div>
-        <div style="font-size:11px; color:var(--muted); margin-top:8px;">鑑定書（1,600pt）とこよみの扉（100pt）の購入件数と、使われたポイントの合計です（12.cure-commu.com）</div>
+        <div style="font-size:11px; color:var(--muted); margin-top:8px;">鑑定書（1,600pt）とこよみの扉（100pt）の購入件数と、使われたポイントの合計です（12.cure-commu.com）。テスト用アカウント（bibitan）の分は数えていません</div>
         <div id="kanteiRecent" style="margin-top:10px; font-size:12px;"></div>
       </div>
 
@@ -671,6 +671,7 @@ let statsCache = null;
 let sevenStatsCache = null;
 let kanteiStatsCache = null; // 十二の式神の購入（pointHistory reason=kantei）
 let kanteiNames = {};        // 会員ID→名前（直近の注文の表示用）
+const KANTEI_TEST_NAMES = ['bibitan']; // テスト用アカウント。十二の式神の集計から外す（本人「テスト分は消せないの」2026-10-22）
 
 async function loadTodayStats(force) {
   if (!tellerId) return;
@@ -725,10 +726,16 @@ async function loadTodayStats(force) {
 async function loadKanteiStats(noRender) {
   const btn = $('kanteiReload'); if (btn) { btn.disabled = true; btn.textContent = '更新中…'; }
   try {
+    // テスト用アカウントの会員IDを名前から引いて、その分は数えない
+    const testUids = new Set();
+    for (const nm of KANTEI_TEST_NAMES) {
+      try { const q = await db.collection('users').where('name', '==', nm).get(); q.forEach(u => testUids.add(u.id)); } catch (e) { console.warn('テスト会員の検索に失敗:', e); }
+    }
     const kSnap = await db.collection('pointHistory').where('reason', '==', 'kantei').get();
     kanteiStatsCache = [];
     kSnap.forEach(d => {
       const m = d.data();
+      if (testUids.has(m.userId)) return; // テスト分は除く
       if (m.createdAt && m.createdAt.toDate) kanteiStatsCache.push({ at: m.createdAt.toDate(), pt: Math.abs(m.change || 0), note: m.note || '', userId: m.userId || '' });
     });
     // 直近10件は会員の名前で（本人「記号じゃわかんない」）
