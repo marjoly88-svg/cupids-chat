@@ -294,10 +294,11 @@
       <div class="card total-card">
         <div class="card-label">本日の獲得ポイント（合計）</div>
         <div class="big-pt" id="todayPt">--<small> pt</small></div>
+        <div style="font-size:11px; color:var(--muted); margin:-4px 0 6px;">今日 / 前日（文字数＋100文字＋12）</div>
         <div class="total-breakdown">
           <span>文字数 <b id="todayMojiPt">-- pt</b></span>
           <span>100文字 <b id="todaySevenPt">-- pt</b></span>
-          <span>式神 <b id="todayKanteiPt">-- pt</b></span>
+          <span>12 <b id="todayKanteiPt">-- pt</b></span>
         </div>
       </div>
       <div class="card">
@@ -783,8 +784,15 @@ function renderStats() {
   $('sevenPriceLabel').textContent = price.toLocaleString();
   const count = (from, to) => sevenStatsCache.filter(r => r.at >= from && (!to || r.at < to)).length;
   const todaySevenPt = count(todayStart) * price;
+  const yesterdaySevenPt = count(yesterdayStart, todayStart) * price;
+  const yesterdayMojiPt = sum(yesterdayStart, todayStart);
   $('todaySevenPt').textContent = `${todaySevenPt.toLocaleString()} pt`;
-  $('todayPt').innerHTML = `${(todayMojiPt + todaySevenPt).toLocaleString()}<small> pt</small>`;
+  // 黄色のカード＝「今日の合計 / 前日の合計」（本人「後半に/で前日の獲得金額も」2026-10-22）。12（十二の式神）の分は下で足す
+  const showTotal = (todayK, yesterdayK) => {
+    $('todayPt').innerHTML = `${(todayMojiPt + todaySevenPt + todayK).toLocaleString()}<small> pt</small>` +
+      `<small style="color:var(--muted); font-weight:400;"> / ${(yesterdayMojiPt + yesterdaySevenPt + yesterdayK).toLocaleString()} pt</small>`;
+  };
+  showTotal(0, 0);
   const fmt = (n) => `${n}<small> 件</small>` + (n ? `<small style="color:var(--muted); font-weight:400;"> / ${(n * price).toLocaleString()}pt</small>` : '');
   $('sevenToday').innerHTML = fmt(count(todayStart));
   $('sevenYesterday').innerHTML = fmt(count(yesterdayStart, todayStart));
@@ -801,8 +809,9 @@ function renderStats() {
   const kRows = (from, to) => kanteiStatsCache.filter(r => r.at >= from && (!to || r.at < to));
   const kfmt = (rows) => `${rows.length}<small> 件</small>` + (rows.length ? `<small style="color:var(--muted); font-weight:400;"> / ${rows.reduce((a, r) => a + r.pt, 0).toLocaleString()}pt</small>` : '');
   const todayKanteiPt = kRows(todayStart).reduce((a, r) => a + r.pt, 0);
+  const yesterdayKanteiPt = kRows(yesterdayStart, todayStart).reduce((a, r) => a + r.pt, 0);
   $('todayKanteiPt').textContent = `${todayKanteiPt.toLocaleString()} pt`;
-  $('todayPt').innerHTML = `${(todayMojiPt + todaySevenPt + todayKanteiPt).toLocaleString()}<small> pt</small>`;
+  showTotal(todayKanteiPt, yesterdayKanteiPt);
   $('kanteiToday').innerHTML = kfmt(kRows(todayStart));
   $('kanteiYesterday').innerHTML = kfmt(kRows(yesterdayStart, todayStart));
   $('kanteiWeek').innerHTML = kfmt(kRows(weekStart));
