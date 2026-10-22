@@ -31,6 +31,12 @@ const CUPIDS = {
   // url が "#charge" ならチャージ画面を開く
   banners: [
     {
+      // 10/22 本人「この画像を使ってバナー入れといて」= 十二の式神の看板（自動鑑定 12.cure-commu.com）
+      title: "七水南の十二の式神｜入力するだけで今すぐ読める自動鑑定",
+      img: "shikigami-banner.webp",
+      url: "https://12.cure-commu.com/"
+    },
+    {
       title: "電話占いキューピッズ",
       sub: "人気の占い師と直接話せる電話鑑定",
       url: "https://cupids-denwa.vercel.app/",
